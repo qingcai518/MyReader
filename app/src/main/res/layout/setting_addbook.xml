@@ -1,0 +1,41 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <Button
+        android:id="@+id/download"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_click"
+        android:padding="5dp"
+        android:text="@string/btnImportFromCloud"
+        android:textSize="15dp"
+        android:textColor="@color/white"
+        android:layout_gravity="center_horizontal"
+        android:drawableLeft="@drawable/ic_download" />
+
+    <Button
+        android:id="@+id/local"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_click"
+        android:padding="5dp"
+        android:text="@string/btnImportFromLocal"
+        android:textSize="15dp"
+        android:textColor="@color/white"
+        android:layout_gravity="center_horizontal"
+        android:drawableLeft="@drawable/ic_action_folder_open" />
+
+    <Button
+        android:id="@+id/wifi"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/button_click"
+        android:padding="5dp"
+        android:text="@string/btnImportFromWifi"
+        android:textSize="15dp"
+        android:textColor="@color/white"
+        android:layout_gravity="center_horizontal"
+        android:drawableLeft="@drawable/ic_action_send" />
+</LinearLayout>

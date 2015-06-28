@@ -1,0 +1,100 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/slideArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/seagreen"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_dark" />
+
+        <SeekBar
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:id="@+id/lightProgress"
+            android:progressDrawable="@drawable/progress_light"
+            android:thumb="@drawable/thumb_light"
+            android:layout_gravity="center_horizontal" />
+
+        <ImageView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:src="@drawable/ic_light" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/font_sets"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/seagreen"
+        android:padding="5dp"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/plus"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:background="@drawable/fontstyle"
+            android:text="A+"
+            android:textSize="15dp"
+            android:textColor="@color/white" />
+
+        <Button
+            android:id="@+id/minus"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:background="@drawable/fontstyle"
+            android:text="A-"
+            android:textSize="15dp"
+            android:textColor="@color/white" />
+
+        <Button
+            android:id="@+id/chinese"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:background="@drawable/fontstyle"
+            android:text="简/繁"
+            android:textSize="15dp"
+            android:textColor="@color/white" />
+
+        <Button
+            android:id="@+id/bord"
+            android:layout_width="wrap_content"
+            android:layout_height="30dp"
+            android:layout_weight="1"
+            android:layout_margin="5dp"
+            android:background="@drawable/fontstyle"
+            android:text="B"
+            android:textSize="15dp"
+            android:textColor="@color/white" />
+    </LinearLayout>
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none">
+
+        <LinearLayout
+            android:id="@+id/color_sets"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@color/seagreen"
+            android:orientation="horizontal"
+            android:padding="5dp" />
+    </HorizontalScrollView>
+
+</LinearLayout>

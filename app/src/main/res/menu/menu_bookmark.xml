@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <group>
+        <item
+            android:title="打开书签"
+            android:id="@+id/open"></item>
+
+        <item
+            android:title="删除书签"
+            android:id="@+id/delete"></item>
+    </group>
+    <item
+        android:title="删除所有书签"
+        android:id="@+id/deleteAll"></item>
+</menu>

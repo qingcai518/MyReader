@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:title="进入阅读"
+        android:id="@+id/read"></item>
+
+    <item
+        android:title="删除本书"
+        android:id="@+id/delete"></item>
+</menu>

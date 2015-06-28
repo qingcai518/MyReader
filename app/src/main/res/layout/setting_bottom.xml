@@ -1,0 +1,125 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/slideArea"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/seagreen"
+        android:alpha="0.9"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/seekText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="20dp"
+            android:textColor="@color/white"
+            android:paddingTop="5dp"
+            android:gravity="center" />
+
+        <LinearLayout
+            android:id="@+id/slide"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/preChapter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="5dp"
+                android:text="前一章"
+                android:textSize="15dp"
+                android:textColor="@color/white"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/button_click"
+                android:drawableTop="@drawable/ic_action_playback_rew" />
+
+            <SeekBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:id="@+id/progressSeek"
+                android:progressDrawable="@drawable/progress_light"
+                android:thumb="@drawable/thumb_light"
+                android:layout_gravity="center_horizontal" />
+
+            <Button
+                android:id="@+id/nextChapter"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:padding="5dp"
+                android:text="下一章"
+                android:textSize="15dp"
+                android:textColor="@color/white"
+                android:layout_gravity="center_horizontal"
+                android:background="@drawable/button_click"
+                android:drawableTop="@drawable/ic_action_playback_forw" />
+
+        </LinearLayout>
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/bottoms"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/seagreen"
+        android:orientation="horizontal">
+
+        <Button
+            android:id="@+id/catalogue"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/button_click"
+            android:padding="5dp"
+            android:text="目录"
+            android:textSize="15dp"
+            android:textColor="@color/white"
+            android:layout_gravity="center_horizontal"
+            android:drawableTop="@drawable/ic_action_chapter" />
+
+        <Button
+            android:id="@+id/share"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/button_click"
+            android:padding="5dp"
+            android:text="分享"
+            android:textSize="15dp"
+            android:textColor="@color/white"
+            android:layout_gravity="center_horizontal"
+            android:drawableTop="@drawable/ic_action_share" />
+
+        <Button
+            android:id="@+id/set"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/button_click"
+            android:padding="5dp"
+            android:text="设定"
+            android:textSize="15dp"
+            android:textColor="@color/white"
+            android:layout_gravity="center_horizontal"
+            android:drawableTop="@drawable/ic_action_gear" />
+
+        <Button
+            android:id="@+id/night"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:background="@drawable/button_click"
+            android:padding="5dp"
+            android:text="夜间"
+            android:textSize="15dp"
+            android:textColor="@color/white"
+            android:layout_gravity="center_horizontal"
+            android:drawableTop="@drawable/ic_action_bulb" />
+    </LinearLayout>
+
+</LinearLayout>

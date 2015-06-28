@@ -1,0 +1,277 @@
+package org.kaka.myreader.common;
+
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
+import android.util.Base64;
+import android.util.DisplayMetrics;
+import android.util.Log;
+import android.view.Display;
+import android.view.ViewConfiguration;
+
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.kaka.myreader.R;
+import org.kaka.myreader.dlayer.dao.DaoFactory;
+import org.kaka.myreader.dlayer.dao.MyBookDao;
+import org.kaka.myreader.dlayer.entities.MyBookEntity;
+
+import java.io.BufferedInputStream;
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+
+public class AppUtility {
+    public static void getJSONFromServer(List<Map<String, Object>> listData) {
+        HttpClient client = new DefaultHttpClient();
+        HttpGet request = new HttpGet(AppConstants.SERVER);
+        client.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
+        try {
+            HttpResponse response = client.execute(request);
+            int responseCode = response.getStatusLine().getStatusCode();
+            if (responseCode != 200) {
+                Log.e("Fail to connect:", responseCode + "");
+            }
+
+            JSONArray array = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
+            for (int i = 0; i < array.length(); i++) {
+                JSONArray item = array.getJSONArray(i);
+                Map<String, Object> map = new HashMap<>();
+
+                map.put("id", item.getInt(0));
+                map.put("name", item.getString(1));
+                map.put("author", item.getString(2));
+                map.put("detail", item.getString(3));
+                map.put("path", item.getString(4));
+
+                byte[] data = Base64.decode(item.getString(5), Base64.DEFAULT);
+                Bitmap bitmap = null;
+                if (data.length != 0) {
+                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+                }
+                map.put("image", bitmap);
+                listData.add(map);
+            }
+
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
+    public static Map<Integer, String> getChapterInfoJSON(int id) {
+        Map<Integer, String> result = new LinkedHashMap<>();
+        HttpClient client = new DefaultHttpClient();
+        HttpGet request = new HttpGet(AppConstants.CHAPTER_SERVER + id);
+        client.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
+        try {
+            HttpResponse response = client.execute(request);
+            int responseCode = response.getStatusLine().getStatusCode();
+            if (responseCode != 200) {
+                Log.e("Fail to connect:", responseCode + "");
+                return result;
+            }
+
+            JSONArray array = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
+
+            for (int i = 0; i < array.length(); i++) {
+                JSONArray item = array.getJSONArray(i);
+                int offset = item.getInt(2);
+                String chapterName = item.getString(3);
+                result.put(offset, chapterName);
+            }
+
+        } catch (IOException | JSONException e) {
+            e.printStackTrace();
+        }
+
+        return result;
+    }
+
+    public static String readFile(String filePath) {
+        long startTime = System.currentTimeMillis();
+        File file = new File(filePath);
+        if (!file.exists()) {
+            return "";
+        }
+        BufferedReader reader = null;
+        StringBuilder builder = new StringBuilder();
+        try {
+            reader = new BufferedReader(new InputStreamReader(new FileInputStream(file), getCharset(file)));
+            String str;
+            while ((str = reader.readLine()) != null) {
+                builder.append(str);
+                builder.append("\n");
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                if (reader != null) {
+                    reader.close();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+
+        long endTime = System.currentTimeMillis();
+        Log.e("File read time : ", (endTime - startTime) / 1000 + "s");
+        return builder.toString();
+    }
+
+    public static String getCharset(File file) {
+        String charset = "GBK";
+        try {
+            BufferedInputStream bis = new BufferedInputStream(
+                    new FileInputStream(file));
+            int head = bis.read() << 8 + bis.read();
+            switch (head) {
+                case 0xefbb:
+                    charset = "UTF-8";
+                    break;
+                case 0xfffe:
+                    charset = "Unicode";
+                    break;
+                case 0xfeff:
+                    charset = "UTF-16BE";
+                    break;
+                default:
+                    charset = "GBK";
+                    break;
+            }
+            bis.close();
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+        return charset;
+    }
+
+    public static List<Map<String, Object>> getData(Context context) {
+        List<Map<String, Object>> listData = new ArrayList<>();
+        MyBookDao dao = new DaoFactory(context).getMyBookDao();
+
+        List<MyBookEntity> data = dao.getBooks();
+
+        for (MyBookEntity entity : data) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", entity.getId());
+            map.put("name", entity.getName());
+            map.put("author", entity.getAuthor());
+            map.put("detail", entity.getDetail());
+            map.put("path", entity.getPath());
+
+            Bitmap image = entity.getImage();
+            if (image == null) {
+                image = BitmapFactory.decodeResource(context.getResources(), R.drawable.default_txt);
+            }
+            map.put("image", image);
+            map.put("currentOffset", entity.getCurrentOffset());
+            listData.add(map);
+        }
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", "-1");
+        map.put("name", "添加更多书籍");
+        map.put("author", "");
+        map.put("detail", "");
+        map.put("path", "");
+        map.put("image", BitmapFactory.decodeResource(context.getResources(), R.drawable.addbook));
+        map.put("pageIndex", -1);
+        listData.add(map);
+
+        return listData;
+    }
+
+    public static Map<Integer, String> getCaptureInfo(String contents) {
+        int CAPTURE_SIZE = 10000;
+        String CAPTURE = "章节-";
+        Map<Integer, String> result = new LinkedHashMap<>();
+
+        int count = 0;
+        int offset = 0;
+        while (contents.length() > 0) {
+            result.put(offset, CAPTURE + (++count));
+
+            char lastChar;
+            if (contents.length() > CAPTURE_SIZE) {
+                lastChar = contents.charAt(CAPTURE_SIZE - 1);
+                contents = contents.substring(CAPTURE_SIZE);
+            } else {
+                break;
+            }
+
+            offset += CAPTURE_SIZE;
+            if (lastChar != '\n') {
+                int index = contents.indexOf("\n") + 1;
+                if (index > 0 && index < contents.length()) {
+                    contents = contents.substring(index);
+                    offset += index;
+                    while (contents.startsWith("\n")) {
+                        contents = contents.substring(1);
+                        offset++;
+                    }
+                } else {
+                    contents = "";
+                    offset = contents.length();
+                }
+            }
+        }
+        return result;
+    }
+
+    public static String convertS2J(String str) {
+        StringBuilder builder = new StringBuilder();
+        for (char c : str.toCharArray()) {
+            int index = AppConstants.SIMPLES.indexOf(c);
+            if (index < 0) {
+                builder.append(c);
+            } else {
+                builder.append(AppConstants.TRADITIONS.charAt(index));
+            }
+        }
+        return builder.toString();
+    }
+
+    public static String convertJ2S(String str) {
+        StringBuilder builder = new StringBuilder();
+        for (char c : str.toCharArray()) {
+            int index = AppConstants.TRADITIONS.indexOf(c);
+            if (index < 0) {
+                builder.append(c);
+            } else {
+                builder.append(AppConstants.SIMPLES.charAt(index));
+            }
+        }
+        return builder.toString();
+    }
+
+    public static int getVirtualButtonHeight (Context context, Display display, int leftHeight) {
+        int height = 0;
+        if (!ViewConfiguration.get(context).hasPermanentMenuKey()) {
+            DisplayMetrics displayMetrics = new DisplayMetrics();
+            int API_LEVEL = android.os.Build.VERSION.SDK_INT;
+            if (API_LEVEL >= 17) {
+                display.getRealMetrics(displayMetrics);
+            } else {
+                display.getMetrics(displayMetrics);
+            }
+            int realHeight = displayMetrics.heightPixels;
+            height = realHeight - leftHeight;
+        }
+
+        return height;
+    }
+}
