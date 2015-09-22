@@ -1,122 +1,90 @@
 package org.kaka.myreader.task;
 
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
-import android.support.v4.app.FragmentActivity;
+import android.util.Base64;
+import android.util.Log;
 import android.widget.Toast;
 
+import org.apache.http.HttpResponse;
+import org.apache.http.client.HttpClient;
+import org.apache.http.client.methods.HttpGet;
+import org.apache.http.impl.client.DefaultHttpClient;
+import org.apache.http.params.CoreConnectionPNames;
+import org.apache.http.util.EntityUtils;
+import org.json.JSONArray;
 import org.kaka.myreader.common.AppConstants;
-import org.kaka.myreader.common.AppUtility;
-import org.kaka.myreader.dlayer.dao.CaptureInfoDao;
-import org.kaka.myreader.dlayer.dao.DaoFactory;
-import org.kaka.myreader.dlayer.dao.MyBookDao;
-import org.kaka.myreader.dlayer.entities.MyBookEntity;
-import org.kaka.myreader.fragment.LocalBooksFragment;
+import org.kaka.myreader.fragment.CloudFragment;
 
-import java.io.BufferedInputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.net.URL;
-import java.net.URLConnection;
-import java.net.URLEncoder;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
-public class ConnectTask extends AsyncTask<Map<String, Object>, Integer, String> {
-    private FragmentActivity context;
+public class ConnectTask extends AsyncTask<List<Map<String, Object>>, Integer, Integer> {
+    private final static String TAG = "ConnectTask";
+    private CloudFragment fragment;
 
-    public ConnectTask(FragmentActivity context) {
-        this.context = context;
+    public ConnectTask(CloudFragment fragment) {
+        this.fragment = fragment;
     }
 
     @Override
-    protected String doInBackground(Map<String, Object>... params) {
-        FileOutputStream outputStream = null;
-        URLConnection conn;
-        BufferedInputStream bis = null;
-        byte[] buffer = new byte[AppConstants.BUFFER_SIZE];
+    protected Integer doInBackground(List<Map<String, Object>>... params) {
+        HttpClient client = new DefaultHttpClient();
+        HttpGet request = new HttpGet(AppConstants.SERVER);
+        client.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
         try {
-            String id = (String) params[0].get("id");
-            String filePath = AppConstants.BASE_URL + params[0].get("path");
-            String author = (String) params[0].get("author");
-            String detail = (String) params[0].get("detail");
-            Bitmap bitmap = (Bitmap) params[0].get("image");
+            List<Map<String, Object>> listData = params[0];
+            HttpResponse response = client.execute(request);
+            int responseCode = response.getStatusLine().getStatusCode();
+            if (responseCode != 200) {
+                throw new Exception(responseCode + " : " + response.getStatusLine().getReasonPhrase());
+            }
 
-            String path = filePath.substring(0, filePath.lastIndexOf("/") + 1);
-            String name = filePath.substring(filePath.lastIndexOf("/") + 1, filePath.lastIndexOf("."));
-            String extension = filePath.substring(filePath.lastIndexOf("."));
-            URL url = new URL(path + URLEncoder.encode(name, "UTF-8") + extension);
-            conn = url.openConnection();
-            conn.setConnectTimeout(3000);
-            bis = new BufferedInputStream(conn.getInputStream());
-            int fileLength = conn.getContentLength();
+            JSONArray array = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
+            List<Map<String, Object>> tempList = new ArrayList<>();
+            for (int i = 0; i < array.length(); i++) {
+                JSONArray item = array.getJSONArray(i);
+                Map<String, Object> map = new HashMap<>();
 
-            // String downloadDir = Environment.getExternalStorageDirectory() + "/MyReader/";
-            File dir = new File(AppConstants.APP_DOWNLOAD_DIR);
-            if (!dir.exists()) {
-                boolean result = dir.mkdirs();
-                if (!result) {
-                    return "Error: fail to create directory.";
+                map.put(CloudFragment.KEY_ID, String.valueOf(item.getInt(0)));
+                map.put(CloudFragment.KEY_NAME, item.getString(1));
+                map.put(CloudFragment.KEY_AUTHOR, item.getString(2));
+                map.put(CloudFragment.KEY_DETAIL, item.getString(3));
+                map.put(CloudFragment.KEY_PATH, item.getString(4));
+
+                byte[] data = Base64.decode(item.getString(5), Base64.DEFAULT);
+                Bitmap bitmap = null;
+                if (data.length != 0) {
+                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
                 }
-            }
-            String fileName = filePath.substring(filePath.lastIndexOf("/"), filePath.length());
-            String downloadFile = AppConstants.APP_DOWNLOAD_DIR + fileName;
-            File file = new File(downloadFile);
-            if (file.exists()) {
-                boolean result = file.delete();
-                if(!result) {
-                    throw new Exception("fail to delete current file.");
-                }
+                map.put(CloudFragment.KEY_IMAGE, bitmap);
+                map.put(CloudFragment.KEY_SIZE, item.getString(6));
+                map.put(CloudFragment.KEY_SCORE, item.getDouble(7));
+                tempList.add(map);
             }
 
-            outputStream = new FileOutputStream(downloadFile);
-            int total = 0;
-            int len;
-            while ((len = bis.read(buffer)) != -1) {
-                outputStream.write(buffer, 0, len);
-                total += len;
-                publishProgress(total * 100 / fileLength);
+            if (tempList.size() > 0) {
+                listData.clear();
+                listData.addAll(tempList);
             }
 
-            //DB insert
-            DaoFactory factory = new DaoFactory(context);
-            MyBookDao dao = factory.getMyBookDao();
-            MyBookEntity entity = new MyBookEntity();
-            entity.setId(String.valueOf(id));
-            entity.setName(name);
-            entity.setAuthor(author);
-            entity.setDetail(detail);
-            entity.setPath(downloadFile);
-            entity.setImage(bitmap);
-            dao.addBook(entity);
-
-            Map<Integer, String> chapterMap = AppUtility.getChapterInfoJSON(id);
-            CaptureInfoDao captureInfoDao = factory.getCaptureInfoDao();
-            captureInfoDao.insert(id, chapterMap);
-
-            return name + "下载完成!";
         } catch (Exception e) {
-            return e.toString() + e.getMessage();
-        } finally {
-            try {
-                if (bis != null) {
-                    bis.close();
-                }
-                if (outputStream != null) {
-                    outputStream.flush();
-                    outputStream.close();
-                }
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
+            Log.e(TAG, e.getMessage());
+            return 1;
         }
+
+        return 0;
     }
 
     @Override
-    protected void onPostExecute(String result) {
-        Toast.makeText(context, result, Toast.LENGTH_SHORT).show();
-        LocalBooksFragment fragment = (LocalBooksFragment) context.getSupportFragmentManager().findFragmentByTag(AppConstants.TAG_ARRAY[0]);
-        if (fragment != null) {
-            fragment.update();
+    protected void onPostExecute(Integer result) {
+        if (result != 0) {
+            Toast.makeText(fragment.getActivity(), "无法连接网络", Toast.LENGTH_SHORT).show();
         }
+
+        fragment.finishConnection();
     }
 }

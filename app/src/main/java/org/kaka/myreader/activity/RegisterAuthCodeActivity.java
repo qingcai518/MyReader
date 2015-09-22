@@ -1,9 +1,12 @@
 package org.kaka.myreader.activity;
 
+import android.app.Activity;
 import android.app.ProgressDialog;
+import android.content.Intent;
 import android.graphics.Paint;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
+import android.os.Handler;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.View;
@@ -14,31 +17,34 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import org.kaka.myreader.R;
-import org.kaka.myreader.common.AppUtility;
+import org.kaka.myreader.common.AppConstants;
 import org.kaka.myreader.task.MailSendTask;
 
-public class RegisterAuthCodeActivity extends FragmentActivity {
-    private String mailTo;
-    private ProgressDialog dialog;
+import java.util.Timer;
+import java.util.TimerTask;
+
+public class RegisterAuthCodeActivity extends Activity {
+    private String authCode;
+    private TextView countView;
+    private int count;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register_mail);
+        setContentView(R.layout.activity_register_authcode);
 
         init();
     }
 
-    private void init() {
-        TextView registByPhone = (TextView) findViewById(R.id.registByPhone);
-        registByPhone.getPaint().setFlags(Paint.UNDERLINE_TEXT_FLAG);
-        registByPhone.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                finish();
-            }
-        });
+    @Override
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        if (requestCode == 0 && resultCode == Activity.RESULT_OK) {
+            setResult(Activity.RESULT_OK);
+            finish();
+        }
+    }
 
+    private void init() {
         ImageButton btnBack = (ImageButton) findViewById(R.id.back);
         btnBack.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -47,8 +53,40 @@ public class RegisterAuthCodeActivity extends FragmentActivity {
             }
         });
 
-        EditText editText = (EditText) findViewById(R.id.mail);
-        editText.addTextChangedListener(new TextWatcher() {
+        TextView messageView = (TextView) findViewById(R.id.message);
+        TextView infoView = (TextView) findViewById(R.id.info);
+        Intent intent = getIntent();
+        final int type = intent.getIntExtra(AppConstants.KEY_REGIST_TYPE, AppConstants.TYPE_PHONE);
+        if (type == AppConstants.TYPE_MAIL) {
+            messageView.setText("我们已经发送验证码到这个邮箱：");
+        } else {
+            messageView.setText("我们已经发送验证码到这个号码：");
+        }
+
+        final String info = intent.getStringExtra(AppConstants.KEY_INFO);
+        infoView.setText(info);
+
+        Button btnNext = (Button) findViewById(R.id.next);
+        btnNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (authCode == null || authCode.trim().length() == 0) {
+                    Toast.makeText(RegisterAuthCodeActivity.this, "请输入验证码", Toast.LENGTH_SHORT).show();
+                }
+                if (authCode.equals(AppConstants.CurrentAuthCode)) {
+                    Intent intent = new Intent(RegisterAuthCodeActivity.this, RegisterInfoActivity.class);
+                    intent.putExtra(AppConstants.KEY_INFO, info);
+                    intent.putExtra(AppConstants.KEY_REGIST_TYPE, type);
+                    RegisterAuthCodeActivity.this.startActivityForResult(intent, 0);
+                    overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
+                } else {
+                    Toast.makeText(RegisterAuthCodeActivity.this, "验证码不正确", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+
+        EditText authCodeText = (EditText) findViewById(R.id.authCode);
+        authCodeText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {
 
@@ -56,37 +94,52 @@ public class RegisterAuthCodeActivity extends FragmentActivity {
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                mailTo = s.toString().trim();
+                authCode = s.toString();
             }
 
             @Override
             public void afterTextChanged(Editable s) {
-
             }
         });
 
-        Button btnNext = (Button) findViewById(R.id.next);
-        btnNext.setOnClickListener(new View.OnClickListener() {
+
+        countView = (TextView) findViewById(R.id.counter);
+
+        countView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                if (!AppUtility.isMailAddress(mailTo)) {
-                    Toast.makeText(RegisterAuthCodeActivity.this, "请输入正确的邮箱地址", Toast.LENGTH_SHORT).show();
+                if (!"重新发送".equals(countView.getText())) {
                     return;
                 }
-                dialog = ProgressDialog.show(RegisterAuthCodeActivity.this, "请稍后", "正在为您发送验证码");
-                new MailSendTask(RegisterAuthCodeActivity.this).execute(mailTo);
+
+                if (type == AppConstants.TYPE_MAIL) {
+                    countView.getPaint().setFlags(Paint.LINEAR_TEXT_FLAG);
+                    new MailSendTask(RegisterAuthCodeActivity.this).execute(info);
+                } else {
+
+                }
             }
         });
+        beginCount();
     }
 
-    public void finishSendMail(int result) {
-        if (dialog != null) {
-            dialog.dismiss();
-        }
-        if (result != 0) {
-            Toast.makeText(this, "发送失败，请检查邮箱是否填写正确或网络是否连接", Toast.LENGTH_SHORT).show();
-        } else {
-            // next activity.
-        }
+    public void beginCount() {
+        count = 20;
+        final Handler handler = new Handler();
+        Runnable runnable = new Runnable() {
+            @Override
+            public void run() {
+                if (count == 0) {
+                    countView.setText("重新发送");
+                    countView.getPaint().setFlags(Paint.UNDERLINE_TEXT_FLAG);
+                    handler.removeCallbacks(this);
+                } else {
+                    countView.setText("约" + count-- + "秒后收到");
+                    handler.postDelayed(this, 1000);
+                }
+            }
+        };
+        runnable.run();
+
     }
 }

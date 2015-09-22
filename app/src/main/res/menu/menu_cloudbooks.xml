@@ -5,6 +5,6 @@
         android:id="@+id/download"></item>
 
     <item
-        android:title="阅读"
+        android:title="查看详情"
         android:id="@+id/read"></item>
 </menu>

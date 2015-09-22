@@ -14,6 +14,7 @@ import android.telephony.SmsManager;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,14 +22,14 @@ import org.kaka.myreader.R;
 import org.kaka.myreader.common.AppConstants;
 import org.kaka.myreader.common.AppUtility;
 
-public class RegisterByPhoneActivity extends FragmentActivity {
+public class RegisterByPhoneActivity extends Activity {
     private String currentCode;
     private long startTime;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register);
+        setContentView(R.layout.activity_register_phone);
 
         init();
         registerReceiver(sendMessage, new IntentFilter(AppConstants.BROADCAST_SENT_SMS));
@@ -38,6 +39,7 @@ public class RegisterByPhoneActivity extends FragmentActivity {
 
     @Override
     public void onDestroy() {
+        super.onDestroy();
         if (sendMessage != null) {
             unregisterReceiver(sendMessage);
         }
@@ -52,11 +54,22 @@ public class RegisterByPhoneActivity extends FragmentActivity {
         registByMail.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                Intent intent = new Intent(RegisterByPhoneActivity.this, RegisterByMailActivity.class);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
+                finish();
             }
         });
 
         final EditText phoneNumberText = (EditText) findViewById(R.id.phoneNumber);
+
+        ImageButton btnBack = (ImageButton) findViewById(R.id.back);
+        btnBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
 
         Button btnNext = (Button) findViewById(R.id.next);
         btnNext.setOnClickListener(new View.OnClickListener() {
@@ -96,10 +109,10 @@ public class RegisterByPhoneActivity extends FragmentActivity {
         public void onReceive(Context context, Intent intent) {
             switch (getResultCode()) {
                 case Activity.RESULT_OK:
-                    Toast.makeText(context, "send success", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "发送成功", Toast.LENGTH_SHORT).show();
                     break;
                 default:
-                    Toast.makeText(context, "send fail", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(context, "发送失败", Toast.LENGTH_SHORT).show();
                     break;
             }
         }
@@ -107,7 +120,7 @@ public class RegisterByPhoneActivity extends FragmentActivity {
     private BroadcastReceiver receiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
-            Toast.makeText(context, "recieve down", Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "对方完成接受", Toast.LENGTH_LONG).show();
         }
     };
 }

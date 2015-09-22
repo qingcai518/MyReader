@@ -215,16 +215,16 @@ public class MySurfaceView extends GLSurfaceView implements Observer {
                                 if (curlState == MyRenderer.CurlState.Right && minXfromRight >= pointerPos.x) {
                                     animationTarget.x = leftRect.left;
                                     animationTargetEvent = SET_CURL_TO_LEFT;
-                                    Log.i("", "111111");
+                                    Log.d("", "111111");
                                 } else {
                                     animationTarget.x = renderer
                                             .getPageRect(MyRenderer.CurlState.Right).right;
                                     animationTargetEvent = SET_CURL_TO_RIGHT;
                                     if (curlState == MyRenderer.CurlState.Right) {
                                         bitmapProvider.backToBefore();
-                                        Log.i("", "222222");
+                                        Log.d("", "222222");
                                     } else {
-                                        Log.i("", "333333");
+                                        Log.d("", "333333");
                                     }
                                 }
                             } else {
@@ -232,17 +232,17 @@ public class MySurfaceView extends GLSurfaceView implements Observer {
                                 if (curlState == MyRenderer.CurlState.Right) {
                                     animationTarget.x = leftRect.left;
                                     animationTargetEvent = SET_CURL_TO_LEFT;
-                                    Log.i("", "444444");
+                                    Log.d("", "444444");
                                 } else {
                                     if (maxXfromLeft <= pointerPos.x) {
                                         animationTarget.x = rightRect.right;
                                         animationTargetEvent = SET_CURL_TO_RIGHT;
-                                        Log.i("", "555555");
+                                        Log.d("", "555555");
                                     } else {
                                         animationTarget.x = rightRect.left;
                                         animationTargetEvent = SET_CURL_TO_LEFT;
                                         bitmapProvider.backToBefore();
-                                        Log.i("", "666666");
+                                        Log.d("", "666666");
                                     }
                                 }
                             }

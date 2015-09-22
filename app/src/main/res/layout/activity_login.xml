@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <RelativeLayout
+        android:layout_width="match_parent"
+        android:layout_height="60dp"
+        android:background="@color/seagreen">
+
+        <TextView
+            android:id="@+id/textSelf"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_centerHorizontal="true"
+            android:layout_centerInParent="true"
+            android:layout_centerVertical="true"
+            android:layout_marginStart="10dp"
+            android:layout_marginTop="10dp"
+            android:maxLines="2"
+            android:singleLine="false"
+            android:text="用户登录"
+            android:textColor="@color/white"
+            android:textSize="20sp" />
+    </RelativeLayout>
+
+    <LinearLayout
+        android:id="@+id/btns"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="vertical"
+        android:paddingEnd="20dp"
+        android:paddingStart="20dp"
+        android:paddingTop="50dp">
+
+        <EditText
+            android:id="@+id/user"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@drawable/text_boder"
+            android:drawableStart="@drawable/ic_user_sel"
+            android:hint="手机/邮箱"
+            android:singleLine="true"
+            android:textColorHint="@color/lightgray" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="20dp" />
+
+        <EditText
+            android:id="@+id/password"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@drawable/text_boder"
+            android:drawableStart="@drawable/ic_key"
+            android:hint="密码"
+            android:inputType="textPassword"
+            android:singleLine="true"
+            android:textColorHint="@color/lightgray" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="20dp" />
+
+        <Button
+            android:id="@+id/login"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/button_click"
+            android:gravity="center"
+            android:text="登陆"
+            android:textColor="@color/white" />
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="10dp" />
+
+        <TextView
+            android:id="@+id/register"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:gravity="end"
+            android:text="注册新用户"
+            android:textColor="@color/blue" />
+
+    </LinearLayout>
+
+</LinearLayout>

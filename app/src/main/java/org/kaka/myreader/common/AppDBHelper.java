@@ -9,7 +9,7 @@ public class AppDBHelper extends SQLiteOpenHelper {
     private final static int DB_VERSION = 1;
     private final static String CREATE_TABLE_MYBOOK =
             "CREATE TABLE IF NOT EXISTS MyBook (" +
-                    "id INTEGER DEFAULT 0 PRIMARY KEY, " +
+                    "id VARCHAR(64) PRIMARY KEY, " +
                     "name VARCHAR(64) NOT NULL, " +
                     "author VARCHAR(64) NOT NULL, " +
                     "detail TEXT," +
@@ -18,17 +18,9 @@ public class AppDBHelper extends SQLiteOpenHelper {
                     "currentOffset INTEGER DEFAULT 0, " +
                     "downloadDate Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                     "readDate Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP) ";
-    private final static String CREATE_TABLE_READINFO =
-            "CREATE TABLE IF NOT EXISTS ReadInfo (" +
-                    "id INTEGER DEFAULT 0, " +
-                    "pageIndex INTEGER DEFAULT 0, " +
-                    "startOffset INTEGER DEFAULT 0, " +
-                    "endOffset INTEGER DEFAULT 0, " +
-                    "FOREIGN KEY (id) REFERENCES MyBooks(id), " +
-                    "PRIMARY KEY (id, pageIndex)) ";
     private final static String CREATE_TABLE_CAPTUREINFO =
             "CREATE TABLE IF NOT EXISTS CaptureInfo (" +
-                    "id INTEGER DEFAULT 0, " +
+                    "id VARCHAR(64), " +
                     "captureId INTEGER DEFAULT 0, " +
                     "captureName VARCHAR(128) NOT NULL, " +
                     "offset INTEGER DEFAULT 0, " +
@@ -36,7 +28,7 @@ public class AppDBHelper extends SQLiteOpenHelper {
                     "PRIMARY KEY (id, captureId))";
     private final static String CREATE_TABLE_BOOKMARKINFO =
             "CREATE TABLE IF NOT EXISTS BookmarkInfo (" +
-                    "id INTEGER DEFAULT 0, " +
+                    "id VARCHAR(64), " +
                     "offset INTEGER DEFAULT 0, " +
                     "captureName VARCHAR(128) NOT NULL, " +
                     "progress VARCHAR(16) NOT NULL, " +
@@ -57,7 +49,6 @@ public class AppDBHelper extends SQLiteOpenHelper {
     @Override
     public void onCreate(SQLiteDatabase db) {
         db.execSQL(CREATE_TABLE_MYBOOK);
-        db.execSQL(CREATE_TABLE_READINFO);
         db.execSQL(CREATE_TABLE_CAPTUREINFO);
         db.execSQL(CREATE_TABLE_BOOKMARKINFO);
         db.execSQL(CREATE_INDEX_CAPTUREINFO_INDEX_ID);

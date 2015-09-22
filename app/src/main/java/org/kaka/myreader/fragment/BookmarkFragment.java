@@ -1,10 +1,10 @@
 package org.kaka.myreader.fragment;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
-import android.util.Log;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
@@ -26,8 +26,9 @@ import java.util.List;
 public class BookmarkFragment extends ListFragment {
     private List<BookmarkInfoEntity> list;
     private BaseAdapter adapter;
-    DaoFactory factory;
-    BookmarkInfoDao dao;
+    private DaoFactory factory;
+    private BookmarkInfoDao dao;
+    private ProgressDialog dialog;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -53,7 +54,7 @@ public class BookmarkFragment extends ListFragment {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 TextView textView = (TextView) LayoutInflater.from(BookmarkFragment.this.getActivity()).inflate(
-                        R.layout.bookmarkitem, null);
+                        R.layout.item_bookmark, null);
                 BookmarkInfoEntity entity = list.get(position);
                 textView.setText(entity.getCaptureName() + "  " + entity.getProgress());
 
@@ -109,14 +110,17 @@ public class BookmarkFragment extends ListFragment {
 
     @Override
     public void onDestroy() {
+        super.onDestroy();
         if (factory != null) {
             factory.closeDB();
         }
-
-        super.onDestroy();
+        if (dialog != null && dialog.isShowing()) {
+            dialog.dismiss();
+        }
     }
 
     private void backToReader(int position) {
+        dialog = ProgressDialog.show(getActivity(), "请稍后", "正在为您加载书签位置..");
         Intent intent = new Intent();
         int currentBookmark = list.get(position).getOffset();
         intent.putExtra("currentOffset", currentBookmark);
@@ -126,10 +130,9 @@ public class BookmarkFragment extends ListFragment {
     }
 
     private void getData() {
-        int id = getActivity().getIntent().getIntExtra("id", 0);
+        String id = getActivity().getIntent().getStringExtra("id");
         factory = new DaoFactory(getActivity());
         dao = factory.getBookmarkInfoDao();
         list = dao.selectById(id);
-        Log.i("here", list.size() + "");
     }
 }

@@ -1,113 +1,110 @@
 package org.kaka.myreader.activity;
 
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.Context;
+import android.app.ProgressDialog;
 import android.content.Intent;
-import android.content.IntentFilter;
 import android.graphics.Paint;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
-import android.telephony.PhoneNumberUtils;
-import android.telephony.SmsManager;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import org.kaka.myreader.R;
 import org.kaka.myreader.common.AppConstants;
 import org.kaka.myreader.common.AppUtility;
+import org.kaka.myreader.task.MailSendTask;
 
-public class RegisterByMailActivity extends FragmentActivity {
-    private String currentCode;
-    private long startTime;
+public class RegisterByMailActivity extends Activity {
+    private String mailTo;
+    private ProgressDialog dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register);
+        setContentView(R.layout.activity_register_mail);
 
         init();
-        registerReceiver(sendMessage, new IntentFilter(AppConstants.BROADCAST_SENT_SMS));
-        registerReceiver(receiver, new IntentFilter(
-                AppConstants.BROADCAST_DELIVERED_SMS));
     }
 
     @Override
-    public void onDestroy() {
-        if (sendMessage != null) {
-            unregisterReceiver(sendMessage);
-        }
-        if (receiver != null) {
-            unregisterReceiver(receiver);
+    public void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        if (requestCode == 0 && resultCode == Activity.RESULT_OK) {
+            setResult(Activity.RESULT_OK);
+            finish();
         }
     }
 
     private void init() {
-        TextView registByMail = (TextView) findViewById(R.id.registByMail);
-        registByMail.getPaint().setFlags(Paint.UNDERLINE_TEXT_FLAG);
-        registByMail.setOnClickListener(new View.OnClickListener() {
+        TextView registByPhone = (TextView) findViewById(R.id.registByPhone);
+        registByPhone.getPaint().setFlags(Paint.UNDERLINE_TEXT_FLAG);
+        registByPhone.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-
+                Intent intent = new Intent(RegisterByMailActivity.this, RegisterByPhoneActivity.class);
+                startActivity(intent);
+                overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
+                finish();
             }
         });
 
-        final EditText phoneNumberText = (EditText) findViewById(R.id.phoneNumber);
+        ImageButton btnBack = (ImageButton) findViewById(R.id.back);
+        btnBack.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();
+            }
+        });
+
+        EditText editText = (EditText) findViewById(R.id.mail);
+        editText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                mailTo = s.toString().trim();
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) {
+
+            }
+        });
 
         Button btnNext = (Button) findViewById(R.id.next);
         btnNext.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                SmsManager smsManager = SmsManager.getDefault();
-                String phoneNumber = phoneNumberText.getText().toString();
-                if (!PhoneNumberUtils.isGlobalPhoneNumber(phoneNumber)) {
+                if (!AppUtility.isMailAddress(mailTo)) {
+                    Toast.makeText(RegisterByMailActivity.this, "邮箱不正确ַ", Toast.LENGTH_SHORT).show();
                     return;
                 }
-
-                if (currentCode == null) {
-                    currentCode = AppUtility.getAuthCode(AppConstants.AUTH_CODE_DIGITS);
-                    startTime = System.currentTimeMillis();
-                } else {
-                    long currentTime = System.currentTimeMillis();
-                    if (currentTime - startTime > AppConstants.AUTH_CODE_EXPIRE) {
-                        currentCode = AppUtility.getAuthCode(AppConstants.AUTH_CODE_DIGITS);
-                        startTime = System.currentTimeMillis();
-                    }
-                }
-
-                Intent sentIntent = new Intent(AppConstants.BROADCAST_SENT_SMS);
-                PendingIntent sentPI = PendingIntent.getBroadcast(RegisterByMailActivity.this, 0, sentIntent, 0);
-
-                Intent deliverIntent = new Intent(AppConstants.BROADCAST_DELIVERED_SMS);
-                PendingIntent deliverPI = PendingIntent.getBroadcast(RegisterByMailActivity.this, 0, deliverIntent, 0);
-
-                smsManager.sendTextMessage(phoneNumber, null, currentCode, sentPI, deliverPI);
+                dialog = ProgressDialog.show(RegisterByMailActivity.this, "请稍等", "正在为您发送验证码");
+                new MailSendTask(RegisterByMailActivity.this).execute(mailTo);
             }
         });
     }
 
-    private BroadcastReceiver sendMessage = new BroadcastReceiver() {
-
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            switch (getResultCode()) {
-                case Activity.RESULT_OK:
-                    Toast.makeText(context, "send success", Toast.LENGTH_SHORT).show();
-                    break;
-                default:
-                    Toast.makeText(context, "send fail", Toast.LENGTH_SHORT).show();
-                    break;
-            }
+    public void finishSendMail(int result) {
+        if (dialog != null) {
+            dialog.dismiss();
         }
-    };
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Toast.makeText(context, "recieve down", Toast.LENGTH_LONG).show();
+        if (result != 0) {
+            Toast.makeText(this, "发送失败，请检查网络连接或邮箱是否可用", Toast.LENGTH_SHORT).show();
+        } else {
+            // next activity.
+            Intent intent = new Intent(this, RegisterAuthCodeActivity.class);
+            intent.putExtra(AppConstants.KEY_REGIST_TYPE, AppConstants.TYPE_MAIL);
+            intent.putExtra(AppConstants.KEY_INFO, mailTo);
+            startActivityForResult(intent, 0);
+            overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
         }
-    };
+    }
 }

@@ -6,6 +6,7 @@
     <string name="title_activity_reader">ReaderActivity</string>
     <string name="title_activity_capture">CaptureActivity</string>
     <string name="title_activity_fileSearch">FileSearchActivity</string>
+    <string name="title_activity_downloadstatus">DownloadStatusActivity</string>
 
     <string name="btnImportFromCloud">从书库下载</string>
     <string name="btnImportFromLocal">从本机导入</string>

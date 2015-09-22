@@ -5,7 +5,10 @@ import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
+import android.util.Log;
 
+import org.kaka.myreader.common.AppConstants;
+import org.kaka.myreader.common.AppUtility;
 import org.kaka.myreader.dlayer.entities.MyBookEntity;
 
 import java.io.ByteArrayOutputStream;
@@ -20,15 +23,31 @@ public class MyBookDao {
         this.db = db;
     }
 
-    public List<MyBookEntity> getBooks() {
-        String sql = "SELECT * FROM " + TABLE_NAME;
+    public List<MyBookEntity> getBooks(int currentOrder) {
+        String orderColumn = "readDate";
+        String order = " DESC";
+        switch (currentOrder) {
+            case AppConstants.ORDER_AUTHOR:
+                orderColumn = "author";
+                order = " ASC";
+                break;
+            case AppConstants.ORDER_BOOKNAME:
+                orderColumn = "name";
+                order = " ASC";
+                break;
+            case AppConstants.ORDER_DOWNLOAD:
+                orderColumn = "downloadDate";
+                order = " ASC";
+                break;
+        }
+        String sql = "SELECT * FROM " + TABLE_NAME + " ORDER BY " + orderColumn + order;
         List<MyBookEntity> result = new ArrayList<>();
         Cursor queryCursor = null;
         try {
             queryCursor = db.rawQuery(sql, null);
             while (queryCursor.moveToNext()) {
                 MyBookEntity entity = new MyBookEntity();
-                entity.setId(queryCursor.getInt(queryCursor.getColumnIndex("id")));
+                entity.setId(queryCursor.getString(queryCursor.getColumnIndex("id")));
                 entity.setName(queryCursor.getString(queryCursor.getColumnIndex("name")));
                 entity.setAuthor(queryCursor.getString(queryCursor.getColumnIndex("author")));
                 entity.setDetail(queryCursor.getString(queryCursor.getColumnIndex("detail")));
@@ -51,6 +70,23 @@ public class MyBookDao {
         return result;
     }
 
+    public boolean exist(String bookName) {
+        String sql = "SELECT count(*) FROM " + TABLE_NAME + " WHERE name=?";
+        Cursor queryCursor = null;
+        int result = 0;
+        try {
+            queryCursor = db.rawQuery(sql, new String[]{bookName});
+            queryCursor.moveToNext();
+            result = queryCursor.getInt(0);
+        } finally {
+            if (queryCursor != null) {
+                queryCursor.close();
+            }
+        }
+
+        return result != 0;
+    }
+
     public long addBook(MyBookEntity entity) {
         ContentValues values = new ContentValues();
         values.put("id", entity.getId());
@@ -70,13 +106,42 @@ public class MyBookDao {
         return db.insert(TABLE_NAME, null, values);
     }
 
-    public int updateCurrentOffset(int id, int currentOffset) {
-        ContentValues values = new ContentValues();
-        values.put("currentOffset", currentOffset);
-        return db.update(TABLE_NAME, values, "id=?", new String[]{id + ""});
+    public void deleteBook(String id) {
+        int result = db.delete(TABLE_NAME, "id=?", new String[]{id});
+        Log.i("delete result", result + "");
     }
 
-    public int getCurrentOffset(int id) {
+    public List<String> getFilePaths(String prefix) {
+        String sql = "SELECT path FROM " + TABLE_NAME + " WHERE id LIKE '" + prefix + "%'";
+        List<String> result = new ArrayList<>();
+        Cursor queryCursor = null;
+        try {
+            queryCursor = db.rawQuery(sql, null);
+            while (queryCursor.moveToNext()) {
+                String filePath = queryCursor.getString(queryCursor.getColumnIndex("path"));
+                result.add(filePath);
+            }
+        } finally {
+            if (queryCursor != null) {
+                queryCursor.close();
+            }
+        }
+        return result;
+    }
+
+    public int updateCurrentOffset(String id, int currentOffset) {
+        ContentValues values = new ContentValues();
+        values.put("currentOffset", currentOffset);
+        return db.update(TABLE_NAME, values, "id=?", new String[]{id});
+    }
+
+    public int updateReadTime(String id) {
+        ContentValues values = new ContentValues();
+        values.put("readDate", AppUtility.getDateTime());
+        return db.update(TABLE_NAME, values, "id=?", new String[]{id});
+    }
+
+    public int getCurrentOffset(String id) {
         String sql = "select currentOffset from " + TABLE_NAME + " where id=?";
         Cursor queryCursor = null;
         int result = 0;

@@ -17,9 +17,11 @@ import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
+import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
+import android.provider.Settings;
 import android.text.Layout;
 import android.text.StaticLayout;
 import android.text.TextPaint;
@@ -31,6 +33,8 @@ import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.RelativeLayout;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -53,7 +57,7 @@ import java.util.Map;
 public class ReaderActivity extends Activity {
     private SharedPreferences preferences;
     private ProgressDialog dialog;
-    private ProgressDialog readCaptureDialog;
+    private ProgressDialog readChapterDialog;
     private String contents;
     private int line;
     private int width;
@@ -65,7 +69,7 @@ public class ReaderActivity extends Activity {
     private int endOffset = 0;
     private int startOffsetBefore = 0;
     private int endOffsetBefore = 0;
-    private int id;
+    private String id;
     private DaoFactory factory;
     private MyBookDao myBookDao;
     private BookmarkInfoDao bookmarkInfoDao;
@@ -93,14 +97,22 @@ public class ReaderActivity extends Activity {
     private int nextPageEnd;
     private float fontSize;
 
-    private ReadTask readTask;
+    private FileReadTask task0;
+    private FileReadTask task1;
+    private FileReadTask task2;
 
     private Map<Integer, Integer> offsetMap;
     private Map<Integer, Integer> offsetOppMap;
 
     private static int VISIBLE_HIDE = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-            | View.SYSTEM_UI_FLAG_FULLSCREEN | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
-    private static int VISIBLE_SHOW = View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_LAYOUT_FLAGS;
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION // hide nav bar
+            | View.SYSTEM_UI_FLAG_FULLSCREEN // hide status bar
+            | View.SYSTEM_UI_FLAG_IMMERSIVE;
+    private static int VISIBLE_SHOW = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
+            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN;
 
     private final static int[] CANVAS_COLORS = new int[]{
             R.color.white,
@@ -121,7 +133,7 @@ public class ReaderActivity extends Activity {
             R.color.black,
             R.color.black,
             R.color.white,
-            R.color.darkgray
+            R.color.darkslategray
     };
 
     @Override
@@ -136,6 +148,11 @@ public class ReaderActivity extends Activity {
         height = size.y;
         getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
         virtualButtonHeight = AppUtility.getVirtualButtonHeight(this, display, height);
+        if (virtualButtonHeight > 0) {
+            // 为显示status bar的底色
+            RelativeLayout layout = (RelativeLayout) findViewById(R.id.title);
+            layout.addView(new View(this));
+        }
 
         addBroadcastReceiver();
         paint = new TextPaint();
@@ -156,11 +173,11 @@ public class ReaderActivity extends Activity {
                 contents = AppUtility.readFile(filePath);
 
                 // get Data from db.
-                id = getIntent().getIntExtra("id", 0);
+                id = getIntent().getStringExtra("id");
                 factory = new DaoFactory(ReaderActivity.this);
                 myBookDao = factory.getMyBookDao();
                 startOffset = myBookDao.getCurrentOffset(id);
-                // endOffset = startOffset;
+                myBookDao.updateReadTime(id);
 
                 // capture info
                 CaptureInfoDao captureInfoDao = factory.getCaptureInfoDao();
@@ -187,10 +204,14 @@ public class ReaderActivity extends Activity {
             myView.onResume();
             getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
         }
-        if (readTask != null) {
-            readTask.stopTasks();
-            readTask.interrupt();
-            readTask = null;
+        if (task0 != null && task0.getStatus() == AsyncTask.Status.RUNNING) {
+            task0.cancel(true);
+        }
+        if (task1 != null && task1.getStatus() == AsyncTask.Status.RUNNING) {
+            task1.cancel(true);
+        }
+        if (task2 != null && task2.getStatus() == AsyncTask.Status.RUNNING) {
+            task2.cancel(true);
         }
         super.onResume();
     }
@@ -201,10 +222,14 @@ public class ReaderActivity extends Activity {
             myView.onResume();
             getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
         }
-        if (readTask != null) {
-            readTask.stopTasks();
-            readTask.interrupt();
-            readTask = null;
+        if (task0 != null && task0.getStatus() == AsyncTask.Status.RUNNING) {
+            task0.cancel(true);
+        }
+        if (task1 != null && task1.getStatus() == AsyncTask.Status.RUNNING) {
+            task1.cancel(true);
+        }
+        if (task2 != null && task2.getStatus() == AsyncTask.Status.RUNNING) {
+            task2.cancel(true);
         }
         super.onRestart();
     }
@@ -215,8 +240,8 @@ public class ReaderActivity extends Activity {
             dialog.dismiss();
         }
 
-        if (readCaptureDialog != null) {
-            readCaptureDialog.dismiss();
+        if (readChapterDialog != null) {
+            readChapterDialog.dismiss();
         }
 
         if (popupTopWindow != null && popupTopWindow.isShowing()) {
@@ -241,11 +266,11 @@ public class ReaderActivity extends Activity {
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
         if (requestCode == 1) {
             if (resultCode == RESULT_OK) {
                 startOffset = intent.getIntExtra("currentOffset", 0);
                 createChapterInfo();
-                Log.i("currentOffset", startOffset + "");
                 myView.update();
             }
         }
@@ -312,9 +337,8 @@ public class ReaderActivity extends Activity {
     }
 
     private void createChapterInfo() {
-        long startTime = System.currentTimeMillis();
+        int preCaptureOffset = 0;
         int currentCaptureOffset = 0;
-        //int preCaptureOffset = 0;
         int nextCaptureOffset = 0;
 
         for (int offset : captureOffsets) {
@@ -322,24 +346,16 @@ public class ReaderActivity extends Activity {
                 nextCaptureOffset = offset;
                 break;
             }
-
-            //preCaptureOffset = currentCaptureOffset;
+            preCaptureOffset = currentCaptureOffset;
             currentCaptureOffset = offset;
         }
 
         offsetMap = new HashMap<>();
         offsetOppMap = new HashMap<>();
 
-//        if (currentCaptureOffset > 0) {
-//            makePageOffsets(preCaptureOffset, currentCaptureOffset);
-//        }
-
-        if (readTask != null) {
-            readTask.stopTasks();
-            readTask.interrupt();
+        if (currentCaptureOffset > 0) {
+            makePageOffsets(preCaptureOffset, currentCaptureOffset);
         }
-        readTask = new ReadTask(currentCaptureOffset);
-        readTask.start();
 
         String currentContent = nextCaptureOffset > 0 ? contents.substring(currentCaptureOffset, nextCaptureOffset) : contents.substring(currentCaptureOffset);
         currentContent = changeText(currentContent);
@@ -357,6 +373,9 @@ public class ReaderActivity extends Activity {
             int endLine = i + line > lineCount ? lineCount : i + line;
             int end = currentCaptureOffset + currentLayout.getLineEnd(endLine - 1);
 
+            if (start == end) {
+                continue;
+            }
             offsetMap.put(start, end);
             offsetOppMap.put(end, start);
         }
@@ -366,8 +385,9 @@ public class ReaderActivity extends Activity {
             startOffset = nearestOffset;
         }
 
-        long endTime = System.currentTimeMillis();
-        Log.i("Lining time : ", endTime - startTime + "ms");
+        doReadTask(currentCaptureOffset);
+
+        Log.i("current", currentCaptureOffset + "->" + nextCaptureOffset);
     }
 
     private void addBroadcastReceiver() {
@@ -395,7 +415,7 @@ public class ReaderActivity extends Activity {
     }
 
     private void showSettingTopWindow() {
-        popupTopWindow = new PopupWindow(ReaderActivity.this);
+        popupTopWindow = new PopupWindow(this);
 
         View popupView = getLayoutInflater().inflate(R.layout.setting_top, null);
         Button backBtn = (Button) popupView.findViewById(R.id.back);
@@ -403,6 +423,7 @@ public class ReaderActivity extends Activity {
         backBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                ReaderActivity.this.setResult(RESULT_OK);
                 ReaderActivity.this.finish();
             }
         });
@@ -419,9 +440,6 @@ public class ReaderActivity extends Activity {
                 bookmarkInfoDao.insert(entity);
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
-                }
-                if (popupBottomWindow != null && popupBottomWindow.isShowing()) {
-                    popupBottomWindow.dismiss();
                 }
                 Toast.makeText(ReaderActivity.this, "追加书签完毕", Toast.LENGTH_SHORT).show();
             }
@@ -449,7 +467,7 @@ public class ReaderActivity extends Activity {
     }
 
     private void showSettingBottomWindow() {
-        popupBottomWindow = new PopupWindow(ReaderActivity.this);
+        popupBottomWindow = new PopupWindow(this);
 
         View popupView = getLayoutInflater().inflate(R.layout.setting_bottom, null);
         TextView seekText = (TextView) popupView.findViewById(R.id.seekText);
@@ -458,7 +476,7 @@ public class ReaderActivity extends Activity {
         btnCat.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(ReaderActivity.this, CaptureActivity.class);
+                Intent intent = new Intent(ReaderActivity.this, ChapterActivity.class);
                 intent.putExtra("id", id);
                 intent.putExtra("captureNames", captureNames);
                 intent.putIntegerArrayListExtra("offsets", captureOffsets);
@@ -466,9 +484,6 @@ public class ReaderActivity extends Activity {
                 intent.putExtra("name", ReaderActivity.this.getIntent().getStringExtra("name"));
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
-                }
-                if (popupBottomWindow != null && popupBottomWindow.isShowing()) {
-                    popupBottomWindow.dismiss();
                 }
                 startActivityForResult(intent, 1);
                 overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
@@ -493,13 +508,17 @@ public class ReaderActivity extends Activity {
         final Button btnNight = (Button) popupView.findViewById(R.id.night);
         if (isLighting) {
             Drawable drawable = getResources().getDrawable(R.drawable.ic_action_light);
-            drawable.setBounds(0, 0, drawable.getMinimumWidth(), drawable.getMinimumHeight());
-            btnNight.setCompoundDrawables(null, drawable, null, null);
+            if (drawable != null) {
+                drawable.setBounds(0, 0, drawable.getMinimumWidth(), drawable.getMinimumHeight());
+                btnNight.setCompoundDrawables(null, drawable, null, null);
+            }
             btnNight.setTextColor(Color.RED);
         } else {
             Drawable drawable = getResources().getDrawable(R.drawable.ic_action_bulb);
-            drawable.setBounds(0, 0, drawable.getMinimumWidth(), drawable.getMinimumHeight());
-            btnNight.setCompoundDrawables(null, drawable, null, null);
+            if (drawable != null) {
+                drawable.setBounds(0, 0, drawable.getMinimumWidth(), drawable.getMinimumHeight());
+                btnNight.setCompoundDrawables(null, drawable, null, null);
+            }
             btnNight.setTextColor(Color.WHITE);
         }
         btnNight.setOnClickListener(new View.OnClickListener() {
@@ -531,10 +550,112 @@ public class ReaderActivity extends Activity {
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
                 }
-                if (popupBottomWindow != null && popupBottomWindow.isShowing()) {
-                    popupBottomWindow.dismiss();
+            }
+        });
+
+        final Button btnPre = (Button) popupView.findViewById(R.id.preChapter);
+        if (currentCapture == 0) {
+            btnPre.setEnabled(false);
+            btnPre.setTextColor(Color.GRAY);
+        } else {
+            btnPre.setEnabled(true);
+            btnPre.setTextColor(Color.WHITE);
+        }
+
+        final Button btnNext = (Button) popupView.findViewById(R.id.nextChapter);
+        if (currentCapture == captureOffsets.get(captureOffsets.size() - 1)) {
+            btnNext.setEnabled(false);
+            btnNext.setTextColor(Color.GRAY);
+        } else {
+            btnNext.setEnabled(true);
+            btnNext.setTextColor(Color.WHITE);
+        }
+
+        btnPre.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int index = captureOffsets.indexOf(currentCapture) - 1;
+                if (index < 0) {
+                    btnPre.setEnabled(false);
+                    btnPre.setTextColor(Color.GRAY);
+                    return;
                 }
-                getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
+                startOffset = captureOffsets.get(index);
+                myView.update();
+                btnNext.setEnabled(true);
+                btnNext.setTextColor(Color.WHITE);
+                if (popupTopWindow != null && popupTopWindow.isShowing()) {
+                    popupTopWindow.dismiss();
+                }
+                doReadTask(currentCapture);
+                int preIndex = index - 1;
+                if (preIndex >= 0) {
+                    int preOffset = captureOffsets.get(preIndex);
+                    doReadTask(preOffset);
+                }
+            }
+        });
+
+        btnNext.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                int index = captureOffsets.indexOf(currentCapture) + 1;
+                if (index >= captureOffsets.size()) {
+                    btnNext.setEnabled(false);
+                    btnNext.setTextColor(Color.GRAY);
+                    return;
+                }
+
+                startOffset = captureOffsets.get(index);
+                myView.update();
+                btnPre.setEnabled(true);
+                btnPre.setTextColor(Color.WHITE);
+                if (popupTopWindow != null && popupTopWindow.isShowing()) {
+                    popupTopWindow.dismiss();
+                }
+                doReadTask(currentCapture);
+            }
+        });
+
+        SeekBar progressSeek = (SeekBar) popupView.findViewById(R.id.progressSeek);
+        progressSeek.setMax(100);
+        int index = captureOffsets.indexOf(currentCapture) + 1;
+        int nextChapterOffset;
+        if (index < captureOffsets.size()) {
+            nextChapterOffset = captureOffsets.get(index) - 1;
+        } else {
+            nextChapterOffset = contents.length() - 1;
+        }
+
+        final int distance = nextChapterOffset - currentCapture;
+        int progress = (startOffset - currentCapture) * 100 / distance;
+        progressSeek.setProgress(progress);
+        Log.i("seek to", progress + "");
+
+        progressSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            private int progress;
+
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                this.progress = progress;
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+                int endOffset = currentCapture + distance * progress / 100;
+                int nearestOffset = 0;
+                for (int key : offsetMap.keySet()) {
+                    if (key <= endOffset) {
+                        nearestOffset = key > nearestOffset ? key : nearestOffset;
+                    }
+                }
+                startOffset = nearestOffset;
+                myView.update();
             }
         });
 
@@ -544,25 +665,12 @@ public class ReaderActivity extends Activity {
         popupBottomWindow.setWidth(width);
         popupBottomWindow.setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
         popupBottomWindow.showAtLocation(getWindow().getDecorView(), Gravity.BOTTOM, 0, virtualButtonHeight);
-        popupBottomWindow.setOnDismissListener(new PopupWindow.OnDismissListener() {
-            @Override
-            public void onDismiss() {
-                if (popupTopWindow != null && popupTopWindow.isShowing()) {
-                    popupTopWindow.dismiss();
-                }
-                getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
-            }
-        });
     }
 
     private void showSettingWindow() {
         if (popupTopWindow != null && popupTopWindow.isShowing()) {
             popupTopWindow.dismiss();
         }
-        if (popupBottomWindow != null && popupBottomWindow.isShowing()) {
-            popupBottomWindow.dismiss();
-        }
-        getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
 
         settingWindow = new PopupWindow(this);
 
@@ -571,6 +679,9 @@ public class ReaderActivity extends Activity {
         int redRingIndex = preferences.getInt(AppConstants.PREF_KEY_REDRINGINDEX, -1);
         for (int i = 0; i < CANVAS_COLORS.length; i++) {
             final LayerDrawable layerList = (LayerDrawable) getResources().getDrawable(R.drawable.colorset);
+            if (layerList == null) {
+                continue;
+            }
             final GradientDrawable btnRing = (GradientDrawable) layerList.findDrawableByLayerId(R.id.btn_ring);
             final GradientDrawable btnContent = (GradientDrawable) layerList.findDrawableByLayerId(R.id.btn_content);
 
@@ -602,6 +713,8 @@ public class ReaderActivity extends Activity {
                     editor.putInt(AppConstants.PREF_KEY_COLOR, currentColor);
                     editor.putInt(AppConstants.PREF_KEY_FONTCOLOR, textColor);
                     editor.putInt(AppConstants.PREF_KEY_REDRINGINDEX, index);
+                    isLighting = false;
+                    editor.putBoolean(AppConstants.PREF_KEY_LIGHT, false);
                     editor.apply();
                     myView.update();
 
@@ -636,6 +749,38 @@ public class ReaderActivity extends Activity {
                 editor.putBoolean(AppConstants.PREF_KEY_BOLD, isBold);
                 editor.apply();
                 myView.update();
+            }
+        });
+
+        final SeekBar lightSeek = (SeekBar) popupView.findViewById(R.id.lightProgress);
+        lightSeek.setMax(255);
+        WindowManager.LayoutParams params = ReaderActivity.this.getWindow().getAttributes();
+        Log.i("test", "" + params.screenBrightness);
+        int lightNow = (int) (params.screenBrightness * 255);
+        if (lightNow == -255) {
+            try {
+                lightNow = Settings.System.getInt(getContentResolver(), Settings.System.SCREEN_BRIGHTNESS);
+            } catch (Exception e) {
+                Log.e("Light", e.getMessage());
+            }
+        }
+        Log.i("Light Now", lightNow + "");
+        lightSeek.setProgress(lightNow);
+        lightSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                WindowManager.LayoutParams params = ReaderActivity.this.getWindow().getAttributes();
+                params.screenBrightness = progress / 255f;
+                ReaderActivity.this.getWindow().setAttributes(params);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
             }
         });
 
@@ -716,7 +861,7 @@ public class ReaderActivity extends Activity {
         settingWindow.setWindowLayoutMode(width, WindowManager.LayoutParams.WRAP_CONTENT);
         settingWindow.setWidth(width);
         settingWindow.setHeight(WindowManager.LayoutParams.WRAP_CONTENT);
-        settingWindow.showAtLocation(getWindow().getDecorView(), Gravity.BOTTOM, 0, virtualButtonHeight);
+        settingWindow.showAtLocation(getWindow().getDecorView(), Gravity.BOTTOM, 0, 0);
         isSettingPopup = true;
     }
 
@@ -737,8 +882,8 @@ public class ReaderActivity extends Activity {
         offsetMap = new HashMap<>();
         offsetOppMap = new HashMap<>();
 
+        int preCaptureOffset = 0;
         int currentCaptureOffset = 0;
-        //int preCaptureOffset = 0;
         int nextCaptureOffset = 0;
 
         for (int offset : captureOffsets) {
@@ -746,26 +891,24 @@ public class ReaderActivity extends Activity {
                 nextCaptureOffset = offset;
                 break;
             }
-
-            //preCaptureOffset = currentCaptureOffset;
+            preCaptureOffset = currentCaptureOffset;
             currentCaptureOffset = offset;
         }
 
-//        if (currentCaptureOffset > 0) {
-//            makePageOffsets(preCaptureOffset, currentCaptureOffset);
-//        }
-        if (readTask != null) {
-            readTask.stopTasks();
-            readTask.interrupt();
+        if (nextCaptureOffset == 0) {
+            nextCaptureOffset = contents.length();
         }
-        readTask = new ReadTask(currentCaptureOffset);
-        readTask.start();
+
+        if (currentCaptureOffset > 0) {
+            makePageOffsets(preCaptureOffset, currentCaptureOffset);
+        }
 
         if (currentCaptureOffset < startOffset) {
             makePageOffsets(currentCaptureOffset, startOffset);
         }
 
         makePageOffsets(startOffset, nextCaptureOffset);
+        doReadTask(currentCaptureOffset);
     }
 
     /**
@@ -880,8 +1023,8 @@ public class ReaderActivity extends Activity {
                 hasNext = endOffset != contents.length();
 
                 progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-                Log.i("pre-left", preStart + ", " + preEnd);
-                Log.i("left", startOffset + ", " + endOffset);
+                Log.d("pre-left", preStart + ", " + preEnd);
+                Log.d("left", startOffset + ", " + endOffset);
                 subContent = contents.substring(preStart, preEnd);
 
                 // insert to myBooks.
@@ -907,7 +1050,7 @@ public class ReaderActivity extends Activity {
                 hasPre = startOffset != 0;
 
                 progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-                Log.i("right", startOffset + ", " + endOffset);
+                Log.i("start - end", startOffset + ", " + endOffset);
                 subContent = contents.substring(startOffset, endOffset);
 
                 // insert to myBooks.
@@ -936,13 +1079,7 @@ public class ReaderActivity extends Activity {
                 readed = false;
             }
             if (!readed && (state == MySurfaceView.BitmapState.ToPreLeft || state == MySurfaceView.BitmapState.ToRight)) {
-                if (readTask != null) {
-                    readTask.stopTasks();
-                    readTask.interrupt();
-                    Log.i("[Task page]", "task stopped");
-                }
-                readTask = new ReadTask(currentCapture);
-                readTask.start();
+                doReadTask(currentCapture);
                 readed = true;
             }
 
@@ -955,7 +1092,7 @@ public class ReaderActivity extends Activity {
     }
 
     private void readPreCaptureInfo(final int startOffset) {
-        readCaptureDialog = ProgressDialog.show(ReaderActivity.this, "请稍后", "加载上一章中...");
+        readChapterDialog = ProgressDialog.show(ReaderActivity.this, "请稍后", "加载上一章中...");
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -978,11 +1115,14 @@ public class ReaderActivity extends Activity {
                     int endLine = i + line > lineCount ? lineCount : i + line;
                     int end = preCaptureOffset + preLayout.getLineEnd(endLine - 1);
 
+                    if (start == end) {
+                        continue;
+                    }
                     offsetMap.put(start, end);
                     offsetOppMap.put(end, start);
                 }
                 long endTime = System.currentTimeMillis();
-                Log.i("Lineing time : ", (endTime - startTime) / 1000 + "s");
+                Log.i("readPre time : ", (endTime - startTime) + "ms");
 
                 prePageStart = start;
                 //return start;
@@ -990,15 +1130,10 @@ public class ReaderActivity extends Activity {
             }
         });
         thread.start();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     private void readNextCaptureInfo(final int startOffset) {
-        readCaptureDialog = ProgressDialog.show(ReaderActivity.this, "请稍后", "加载下一章中...");
+        readChapterDialog = ProgressDialog.show(ReaderActivity.this, "请稍后", "加载下一章中...");
         Thread thread = new Thread(new Runnable() {
             @Override
             public void run() {
@@ -1038,39 +1173,18 @@ public class ReaderActivity extends Activity {
                         nextPageEnd = end;
                     }
 
+                    if (start == end) {
+                        continue;
+                    }
                     offsetMap.put(start, end);
                     offsetOppMap.put(end, start);
                 }
                 long endTime = System.currentTimeMillis();
-                Log.i("Lineing time : ", (endTime - startTime) / 1000 + "s");
-
-                // preCapture read.
-                if (!offsetOppMap.containsKey(captureOffset) && index > 0) {
-                    int preCaptureOffset = captureOffsets.get(index - 1);
-                    String preContent = contents.substring(preCaptureOffset, captureOffset);
-                    preContent = changeText(preContent);
-                    StaticLayout preLayout = new StaticLayout(preContent, 0, preContent.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
-
-                    int preLineCount = preLayout.getLineCount();
-                    for (int i = 0; i < preLineCount; i += line) {
-                        int start = preCaptureOffset + preLayout.getLineStart(i);
-                        int endLine = i + line > preLineCount ? preLineCount : i + line;
-                        int end = preCaptureOffset + preLayout.getLineEnd(endLine - 1);
-
-                        offsetMap.put(start, end);
-                        offsetOppMap.put(end, start);
-                    }
-                }
-
+                Log.i("readNext lining time : ", (endTime - startTime) + "ms");
                 handler.sendEmptyMessage(1);
             }
         });
         thread.start();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
     }
 
     private static class MyHandler extends Handler {
@@ -1092,7 +1206,7 @@ public class ReaderActivity extends Activity {
                     activity.getView();
                     break;
                 case 1:
-                    activity.readCaptureDialog.dismiss();
+                    activity.readChapterDialog.dismiss();
                     activity.getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
                     break;
             }
@@ -1117,76 +1231,87 @@ public class ReaderActivity extends Activity {
         }
     }
 
-    public class ReadTask extends Thread {
-        private int currentCaptureOffset;
-        private int preCaptureOffset;
-        private int nextCaptureOffset;
-        private Thread thread1;
-        private Thread thread2;
-
-        public ReadTask(int currentCaptureOffset) {
-            this.currentCaptureOffset = currentCaptureOffset;
-            int index = captureOffsets.indexOf(currentCaptureOffset);
-            if (index > 0) {
-                preCaptureOffset = captureOffsets.get(index - 1);
-            } else {
-                preCaptureOffset = 0;
-            }
-
-            if (index < captureOffsets.size() - 1) {
-                nextCaptureOffset = captureOffsets.get(index + 1);
-            } else {
-                nextCaptureOffset = captureOffsets.get(captureOffsets.size() - 1);
-            }
+    private void doReadTask(int currentChapterOffset) {
+        int index = captureOffsets.indexOf(currentChapterOffset);
+        int preChapterOffset = 0;
+        if (index > 0) {
+            preChapterOffset = captureOffsets.get(index - 1);
         }
 
-        public void stopTasks() {
-            if (thread1 != null && thread1.isAlive()) {
-                thread1.interrupt();
-            }
-            if (thread2 != null && thread2.isAlive()) {
-                thread2.interrupt();
-            }
+        int beforePreChapterOffset = 0;
+        int beforePreIndex = index - 2;
+        if (beforePreIndex >= 0) {
+            beforePreChapterOffset = captureOffsets.get(beforePreIndex);
         }
 
+        int nextChapterOffset;
+        if (index < captureOffsets.size() - 1) {
+            nextChapterOffset = captureOffsets.get(index + 1);
+        } else {
+            nextChapterOffset = captureOffsets.get(captureOffsets.size() - 1);
+        }
+
+        if (!offsetMap.containsKey(beforePreChapterOffset)) {
+            if (task0 != null && task0.getStatus() == AsyncTask.Status.RUNNING) {
+                task0.cancel(true);
+                Log.i("task0", task0.getStatus().toString());
+            }
+            task0 = new FileReadTask();
+            task0.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, beforePreChapterOffset, preChapterOffset);
+        }
+
+
+        if (!offsetMap.containsKey(preChapterOffset)) {
+            if (task1 != null && task1.getStatus() == AsyncTask.Status.RUNNING) {
+                task1.cancel(true);
+                Log.i("task1", task1.getStatus().toString());
+            }
+            task1 = new FileReadTask();
+            task1.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, preChapterOffset, currentChapterOffset);
+        }
+
+        if (!offsetMap.containsKey(nextChapterOffset)) {
+            int belowChapterOffset;
+            int indexNext = captureOffsets.indexOf(nextChapterOffset);
+            if (indexNext == -1) {
+                return;
+            } else if (indexNext == captureOffsets.size() - 1) {
+                belowChapterOffset = contents.length();
+            } else {
+                belowChapterOffset = captureOffsets.get(indexNext + 1);
+            }
+
+            if (task2 != null && task2.getStatus() == AsyncTask.Status.RUNNING) {
+                task2.cancel(true);
+                Log.i("task2", task2.getStatus().toString());
+            }
+            task2 = new FileReadTask();
+            task2.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, nextChapterOffset, belowChapterOffset);
+
+            Log.i("", beforePreChapterOffset + "->" + preChapterOffset);
+            Log.i("", preChapterOffset + "->" + currentChapterOffset);
+            Log.i("", nextChapterOffset + "->" + belowChapterOffset);
+        }
+    }
+
+    public class FileReadTask extends AsyncTask<Integer, Integer, Integer> {
         @Override
-        public void run() {
+        protected Integer doInBackground(Integer... params) {
             Log.i("[Task]", "Read Task start.");
-            if (preCaptureOffset != currentCaptureOffset && !offsetMap.containsKey(preCaptureOffset)) {
-                thread1 = new Thread(new Runnable() {
-                    public void run() {
-                        Log.i("[Task]", "Task1 start.");
-                        long startTime = System.currentTimeMillis();
-                        makePageOffsets(preCaptureOffset, currentCaptureOffset);
-                        long endTime = System.currentTimeMillis();
-                        Log.i("[Task]", "Task1 end." + (endTime - startTime) + "ms");
-                    }
-                });
-                thread1.start();
+            long startTime = System.currentTimeMillis();
+            int startOffset = params[0];
+            int endOffset = params[1];
+
+            if (offsetMap.containsKey(startOffset)) {
+                return 1;
             }
 
-            if (currentCaptureOffset != nextCaptureOffset && !offsetMap.containsKey(nextCaptureOffset)) {
-                thread2 = new Thread(new Runnable() {
-                    public void run() {
-                        Log.i("[Task]", "Task2 start.");
-                        long startTime = System.currentTimeMillis();
-                        int nextOffset;
-                        int index = captureOffsets.indexOf(nextCaptureOffset);
-                        if (index == -1) {
-                            return;
-                        } else if (index == captureOffsets.size() - 1) {
-                            nextOffset = contents.length();
-                        } else {
-                            nextOffset = captureOffsets.get(index + 1);
-                        }
-                        makePageOffsets(nextCaptureOffset, nextOffset);
-                        long endTime = System.currentTimeMillis();
-                        Log.i("[Task]", "Task2 end." + (endTime - startTime) + "ms");
-                    }
-                });
-                thread2.start();
-            }
-            Log.i("[Task]", "Read Task done.");
+            makePageOffsets(startOffset, endOffset);
+            long endTime = System.currentTimeMillis();
+
+            Log.i("[Task]", "Read Task done." + (endTime - startTime) + "ms");
+
+            return 0;
         }
     }
 }

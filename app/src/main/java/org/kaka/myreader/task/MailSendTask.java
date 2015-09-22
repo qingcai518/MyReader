@@ -1,76 +1,55 @@
 package org.kaka.myreader.task;
 
-import android.graphics.Bitmap;
-import android.graphics.BitmapFactory;
+import android.content.Context;
 import android.os.AsyncTask;
-import android.util.Base64;
-import android.util.Log;
-import android.widget.Toast;
 
-import org.apache.http.HttpResponse;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.params.CoreConnectionPNames;
-import org.apache.http.util.EntityUtils;
-import org.json.JSONArray;
+import org.kaka.myreader.activity.RegisterAuthCodeActivity;
+import org.kaka.myreader.activity.RegisterByMailActivity;
 import org.kaka.myreader.common.AppConstants;
-import org.kaka.myreader.fragment.CloudFragment;
+import org.kaka.myreader.common.AppUtility;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.Properties;
 
-public class MailSendTask extends AsyncTask<List<Map<String, Object>>, Integer, Integer> {
-    private final static String TAG = "ConnectTask";
-    private CloudFragment fragment;
+import javax.mail.Message;
+import javax.mail.Session;
+import javax.mail.Transport;
+import javax.mail.internet.InternetAddress;
+import javax.mail.internet.MimeMessage;
 
-    public MailSendTask(CloudFragment fragment) {
-        this.fragment = fragment;
+public class MailSendTask extends AsyncTask<String, Integer, Integer> {
+    private final static String MAIL_ACCOUNT = "info@myreader.main.jp";
+    private final static String MAIL_SMTP = "smtp.lolipop.jp";
+    private Context context;
+
+    public MailSendTask(Context context) {
+        this.context = context;
     }
 
     @Override
-    protected Integer doInBackground(List<Map<String, Object>>... params) {
-        HttpClient client = new DefaultHttpClient();
-        HttpGet request = new HttpGet(AppConstants.SERVER);
-        client.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
+    protected Integer doInBackground(String... params) {
+        String mailTo = params[0];
+
+        Properties properties = new Properties();
+        properties.put("mail.smtp.host", MAIL_SMTP);
+        properties.put("mail.smtp.port", "587");
+        properties.put("mail.smtp.auth", "true");
+        properties.put("mail.smtp.starttls.enable", "true");
+
+        Session session = Session.getInstance(properties);
+        MimeMessage message = new MimeMessage(session);
         try {
-            List<Map<String, Object>> listData = params[0];
-            HttpResponse response = client.execute(request);
-            int responseCode = response.getStatusLine().getStatusCode();
-            if (responseCode != 200) {
-                throw new Exception(responseCode + " : " + response.getStatusLine().getReasonPhrase());
-            }
+            message.setFrom(new InternetAddress(MAIL_ACCOUNT));
+            message.addRecipient(Message.RecipientType.TO, new InternetAddress(mailTo));
 
-            JSONArray array = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
-            List<Map<String, Object>> tempList = new ArrayList<>();
-            for (int i = 0; i < array.length(); i++) {
-                JSONArray item = array.getJSONArray(i);
-                Map<String, Object> map = new HashMap<>();
+            message.setSubject("MyReader 验证码");
+            AppConstants.CurrentAuthCode = AppUtility.getAuthCode(5);
+            message.setText("您的验证码为 : " + AppConstants.CurrentAuthCode, "UTF-8");
 
-                map.put(CloudFragment.KEY_ID, String.valueOf(item.getInt(0)));
-                map.put(CloudFragment.KEY_NAME, item.getString(1));
-                map.put(CloudFragment.KEY_AUTHOR, item.getString(2));
-                map.put(CloudFragment.KEY_DETAIL, item.getString(3));
-                map.put(CloudFragment.KEY_PATH, item.getString(4));
-
-                byte[] data = Base64.decode(item.getString(5), Base64.DEFAULT);
-                Bitmap bitmap = null;
-                if (data.length != 0) {
-                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-                }
-                map.put(CloudFragment.KEY_IMAGE, bitmap);
-                tempList.add(map);
-            }
-
-            if (tempList.size() > 0) {
-                listData.clear();
-                listData.addAll(tempList);
-            }
-
+            Transport transport = session.getTransport("smtp");
+            transport.connect(MAIL_ACCOUNT, "wy03237462");
+            transport.sendMessage(message, message.getAllRecipients());
+            transport.close();
         } catch (Exception e) {
-            Log.e(TAG, e.getMessage());
             return 1;
         }
 
@@ -79,10 +58,10 @@ public class MailSendTask extends AsyncTask<List<Map<String, Object>>, Integer, 
 
     @Override
     protected void onPostExecute(Integer result) {
-        if (result != 0) {
-            Toast.makeText(fragment.getActivity(), "无法连接网络", Toast.LENGTH_SHORT).show();
+        if (context instanceof RegisterByMailActivity) {
+            ((RegisterByMailActivity) context).finishSendMail(result);
+        } else if (context instanceof RegisterAuthCodeActivity) {
+            ((RegisterAuthCodeActivity) context).beginCount();
         }
-
-        fragment.finishConnection();
     }
 }

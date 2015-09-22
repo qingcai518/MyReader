@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.MOUNT_UNMOUNT_FILESYSTEMS" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
+    <uses-permission android:name="android.permission.SEND_SMS" />
 
     <application
         android:allowBackup="true"
@@ -13,8 +14,8 @@
         android:theme="@style/AppTheme">
         <activity
             android:name=".activity.MainActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/app_name">
+            android:label="@string/app_name"
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
@@ -22,16 +23,50 @@
         </activity>
         <activity
             android:name=".activity.ReaderActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_reader" />
+            android:label="@string/title_activity_reader"
+            android:screenOrientation="portrait" />
         <activity
-            android:name=".activity.CaptureActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_capture" />
+            android:name=".activity.ChapterActivity"
+            android:label="@string/title_activity_capture"
+            android:screenOrientation="portrait" />
         <activity
             android:name=".activity.FileSearchActivity"
-            android:screenOrientation="portrait"
-            android:label="@string/title_activity_fileSearch" />
+            android:label="@string/title_activity_fileSearch"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.DownloadStatusActivity"
+            android:label="@string/title_activity_downloadstatus"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.CloudDetailActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.LoginActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.RegisterByPhoneActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.RegisterByMailActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.RegisterAuthCodeActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.RegisterInfoActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.AccoutActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.AddCommitActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.PhotoPickerActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.PhotoClipActivity"
+            android:screenOrientation="portrait" />
     </application>
 
 </manifest>

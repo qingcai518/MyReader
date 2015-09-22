@@ -3,17 +3,17 @@ package org.kaka.myreader.dlayer.entities;
 import java.sql.Timestamp;
 
 public class BookmarkInfoEntity {
-    private int id;
+    private String id;
     private int offset;
     private String captureName;
     private String progress;
     private Timestamp addDate;
 
-    public int getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 

@@ -1,6 +1,7 @@
 package org.kaka.myreader.fragment;
 
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.Bundle;
@@ -20,6 +21,7 @@ public class ChapterFragment extends ListFragment {
     private String[] captureNames;
     private List<Integer> offsets;
     private int currentCapture;
+    private ProgressDialog dialog;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -47,7 +49,7 @@ public class ChapterFragment extends ListFragment {
             @Override
             public View getView(int position, View convertView, ViewGroup parent) {
                 TextView textView = (TextView) LayoutInflater.from(ChapterFragment.this.getActivity()).inflate(
-                        R.layout.captureitem, null);
+                        R.layout.item_chapter, null);
                 if (currentCapture == offsets.get(position)) {
                     textView.setTextColor(Color.BLUE);
                 }
@@ -61,7 +63,23 @@ public class ChapterFragment extends ListFragment {
     }
 
     @Override
+    public void onViewCreated(View view, Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        int position = offsets.indexOf(currentCapture);
+        getListView().setSelection(position);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (dialog != null && dialog.isShowing()) {
+            dialog.dismiss();
+        }
+    }
+
+    @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
+        dialog = ProgressDialog.show(getActivity(), "请稍后", "正在为您加载选中章节..");
         Intent intent = new Intent();
         currentCapture = offsets.get(position);
         intent.putExtra("currentOffset", currentCapture);

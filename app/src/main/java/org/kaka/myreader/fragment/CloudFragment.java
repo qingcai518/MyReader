@@ -2,30 +2,28 @@ package org.kaka.myreader.fragment;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.os.AsyncTask;
 import android.os.Bundle;
-import android.os.Environment;
 import android.support.v4.app.ListFragment;
-import android.util.Log;
+import android.support.v4.widget.SwipeRefreshLayout;
 import android.view.ContextMenu;
+import android.view.LayoutInflater;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
+import android.widget.BaseAdapter;
 import android.widget.ImageView;
 import android.widget.ListView;
-import android.widget.SimpleAdapter;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import org.kaka.myreader.R;
-import org.kaka.myreader.activity.ReaderActivity;
-import org.kaka.myreader.common.AppConstants;
-import org.kaka.myreader.common.AppUtility;
+import org.kaka.myreader.activity.CloudDetailActivity;
+import org.kaka.myreader.task.ConnectTask;
 import org.kaka.myreader.task.FileDownloadTask;
 
-import java.io.File;
-import java.io.IOException;
-import java.net.URL;
-import java.net.URLConnection;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -33,39 +31,81 @@ import java.util.Map;
 
 public class CloudFragment extends ListFragment {
     private List<Map<String, Object>> listData = new ArrayList<>();
+    private SwipeRefreshLayout swipeRefreshLayout;
+    private BaseAdapter adapter;
+    private boolean isRefreshed = false;
+
+    public final static String KEY_ID = "id";
+    public final static String KEY_IMAGE = "image";
+    public final static String KEY_NAME = "name";
+    public final static String KEY_AUTHOR = "author";
+    public final static String KEY_DETAIL = "detail";
+    public final static String KEY_PATH = "path";
+    public final static String KEY_SIZE = "size";
+    public final static String KEY_SCORE = "score";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        Thread thread = new Thread(new Runnable() {
-            public void run() {
-                AppUtility.getJSONFromServer(listData);
-            }
-        });
-
-        thread.start();
-        try {
-            thread.join();
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
-        SimpleAdapter adapter = new SimpleAdapter(this.getActivity(), listData, R.layout.bookitem,
-                new String[]{"image", "name", "detail"}, new int[]{R.id.image, R.id.bookName, R.id.bookDetail});
-        adapter.setViewBinder(new SimpleAdapter.ViewBinder() {
+        adapter = new BaseAdapter() {
             @Override
-            public boolean setViewValue(View view, Object data, String textRepresentation) {
-                if ((view instanceof ImageView) && (data instanceof Bitmap)) {
-                    ImageView imageView = (ImageView) view;
-                    Bitmap bmp = (Bitmap) data;
-                    imageView.setImageBitmap(bmp);
-                    return true;
+            public int getCount() {
+                return listData.size();
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return listData.get(position);
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return position;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                ViewHolder holder;
+                if (convertView == null) {
+                    convertView = LayoutInflater.from(getActivity()).inflate(
+                            R.layout.item_cloud, null);
+                    holder = new ViewHolder();
+                    holder.image = (ImageView) convertView.findViewById(R.id.image);
+                    holder.bookName = (TextView) convertView.findViewById(R.id.bookName);
+                    holder.author = (TextView) convertView.findViewById(R.id.author);
+                    holder.detail = (TextView) convertView.findViewById(R.id.bookDetail);
+                    convertView.setTag(holder);
+                } else {
+                    holder = (ViewHolder) convertView.getTag();
                 }
-                return false;
+
+
+                Map<String, Object> item = listData.get(position);
+
+                holder.image.setImageBitmap((Bitmap) item.get(KEY_IMAGE));
+                holder.bookName.setText((String) item.get(KEY_NAME));
+                holder.author.setText("作者 : " + item.get(KEY_AUTHOR));
+                holder.detail.setText((String) item.get(KEY_DETAIL));
+
+                return convertView;
+            }
+        };
+        setListAdapter(adapter);
+    }
+
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
+        View view = inflater.inflate(R.layout.fragment_cloud, container, false);
+        swipeRefreshLayout = (SwipeRefreshLayout) view.findViewById(R.id.refreshLayout);
+        swipeRefreshLayout.setOnRefreshListener(new SwipeRefreshLayout.OnRefreshListener() {
+            @Override
+            public void onRefresh() {
+                new ConnectTask(CloudFragment.this).execute(listData);
             }
         });
-        setListAdapter(adapter);
+        refresh();
+        return view;
     }
 
     @Override
@@ -92,7 +132,7 @@ public class CloudFragment extends ListFragment {
                 Toast.makeText(getActivity(), "开始下载..", Toast.LENGTH_SHORT).show();
                 Map<String, Object> currentMap = listData.get(info.position);
                 FileDownloadTask task = new FileDownloadTask(getActivity());
-                task.execute(currentMap);
+                task.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, currentMap);
                 return true;
 
             default:
@@ -102,7 +142,48 @@ public class CloudFragment extends ListFragment {
 
     @Override
     public void onListItemClick(ListView l, View v, int position, long id) {
-        Intent intent = new Intent(getActivity(), ReaderActivity.class);
-        startActivity(intent);
+        Map<String, Object> map = listData.get(position);
+        Intent intent = new Intent(getActivity(), CloudDetailActivity.class);
+        Bundle bundle = new Bundle();
+        bundle.putString(KEY_ID, (String) map.get(KEY_ID));
+        bundle.putString(KEY_NAME, (String) map.get(KEY_NAME));
+        bundle.putString(KEY_AUTHOR, (String) map.get(KEY_AUTHOR));
+        bundle.putString(KEY_PATH, (String) map.get(KEY_PATH));
+        bundle.putString(KEY_DETAIL, (String) map.get(KEY_DETAIL));
+        bundle.putParcelable(KEY_IMAGE, (Bitmap) map.get(KEY_IMAGE));
+        bundle.putString(KEY_SIZE, (String) map.get(KEY_SIZE));
+        double score = (Double) map.get(KEY_SCORE);
+        bundle.putFloat(KEY_SCORE, (float) score);
+        intent.putExtra("bundle", bundle);
+        getActivity().startActivity(intent);
+    }
+
+
+    private void refresh() {
+        if (isRefreshed) {
+            return;
+        }
+        swipeRefreshLayout.post(new Runnable() {
+            @Override
+            public void run() {
+                swipeRefreshLayout.setRefreshing(true);
+                new ConnectTask(CloudFragment.this).execute(listData);
+            }
+        });
+        isRefreshed = true;
+    }
+
+    public void finishConnection() {
+        if (swipeRefreshLayout != null) {
+            swipeRefreshLayout.setRefreshing(false);
+        }
+        adapter.notifyDataSetChanged();
+    }
+
+    class ViewHolder {
+        ImageView image;
+        TextView bookName;
+        TextView author;
+        TextView detail;
     }
 }

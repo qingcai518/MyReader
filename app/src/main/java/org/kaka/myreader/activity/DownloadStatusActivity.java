@@ -1,59 +1,163 @@
 package org.kaka.myreader.activity;
 
+import android.app.ListActivity;
+import android.content.BroadcastReceiver;
+import android.content.Context;
+import android.content.Intent;
+import android.content.IntentFilter;
 import android.os.Bundle;
-import android.support.v4.app.Fragment;
-import android.support.v4.app.FragmentActivity;
-import android.support.v4.app.FragmentTabHost;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
+import android.widget.BaseAdapter;
 import android.widget.Button;
+import android.widget.ProgressBar;
+import android.widget.TextView;
 
 import org.kaka.myreader.R;
 import org.kaka.myreader.common.AppConstants;
-import org.kaka.myreader.fragment.BookmarkFragment;
-import org.kaka.myreader.fragment.ChapterFragment;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
-import java.util.Vector;
+import java.util.Map;
 
-public class DownloadStatusActivity extends FragmentActivity {
-    private FragmentTabHost tabHost;
-    private List<Fragment> fragments;
-    private int intImageViewArray[] = {
-            R.drawable.ic_action_chapter,
-            R.drawable.ic_action_bookmark,
-            R.drawable.ic_action_edit};
+public class DownloadStatusActivity extends ListActivity {
+    private BaseAdapter adapter;
+    private List<Map<String, Object>> listData = new ArrayList<>();
+    private String[] keys = new String[]{"bookName", "status", "statusText", "speed", "cancel"};
+    BroadcastReceiver receiver;
+    private int status = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_capture);
-
-        Button backBtn = (Button) findViewById(R.id.back);
-        backBtn.setText(getIntent().getStringExtra("name"));
-        backBtn.setOnClickListener(new View.OnClickListener() {
+        setContentView(R.layout.activity_downloadstatus);
+        Button btnBack = (Button) findViewById(R.id.back);
+        btnBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 DownloadStatusActivity.this.finish();
             }
         });
+        addAdapter();
+        addBroadcast();
+    }
 
-        fragments = new Vector<>();
-        fragments.add(new ChapterFragment());
-        fragments.add(new BookmarkFragment());
-        fragments.add(new ChapterFragment());
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (receiver != null) {
+            unregisterReceiver(receiver);
+        }
+    }
 
-        tabHost = (FragmentTabHost) findViewById(android.R.id.tabhost);
-        tabHost.setup(this, getSupportFragmentManager(), R.id.realtabcontent);
+    private void addBroadcast() {
+        receiver = new BroadcastReceiver() {
+            @Override
+            public void onReceive(Context context, Intent intent) {
+                String id = intent.getStringExtra("id");
+                String downloadSize = intent.getStringExtra("downloadSize");
+                if (downloadSize == null) {
+                    for (Map<String, Object> map : listData) {
+                        String bookId = (String) map.get("id");
+                        if (id.equals(bookId)) {
+                            listData.remove(map);
+                            break;
+                        }
+                    }
+                } else {
+                    String totalSize = intent.getStringExtra("totalSize");
+                    String speed = intent.getStringExtra("speed");
+                    String name = intent.getStringExtra("name");
+                    status = (int) (Double.parseDouble(downloadSize) * 100 / Double.parseDouble(totalSize));
+                    boolean isExist = false;
+                    for (Map<String, Object> map : listData) {
+                        String bookId = (String) map.get("id");
+                        if (id.equals(bookId)) {
+                            map.put(keys[0], name);
+                            map.put(keys[1], status);
+                            map.put(keys[2], downloadSize + "KB/" + totalSize + "KB");
+                            map.put(keys[3], speed);
+                            isExist = true;
+                            break;
+                        }
+                    }
 
-        tabHost.addTab(tabHost.newTabSpec(AppConstants.CAPTURE_TAG1).setIndicator("目录",
-                        getResources().getDrawable(R.drawable.ic_action_chapter)),
-                ChapterFragment.class, null);
-        tabHost.addTab(tabHost.newTabSpec(AppConstants.CAPTURE_TAG2).setIndicator("书签",
-                        getResources().getDrawable(R.drawable.ic_action_bookmark)),
-                BookmarkFragment.class, null);
-        tabHost.addTab(tabHost.newTabSpec(AppConstants.CAPTURE_TAG3).setIndicator("笔记",
-                        getResources().getDrawable(R.drawable.ic_action_edit)),
-                ChapterFragment.class, null);
+                    if (!isExist) {
+                        Map<String, Object> map = new HashMap<>();
+                        map.put("id", id);
+                        map.put(keys[0], name);
+                        map.put(keys[1], status);
+                        map.put(keys[2], downloadSize + "KB/" + totalSize + "KB");
+                        map.put(keys[3], speed);
+                        listData.add(map);
+                    }
+                }
 
+                update();
+            }
+        };
+        registerReceiver(receiver, new IntentFilter(AppConstants.BROADCAST_DOWNLOAD));
+    }
+
+    private void update() {
+        adapter.notifyDataSetChanged();
+    }
+
+    private void addAdapter() {
+        adapter = new BaseAdapter() {
+            @Override
+            public int getCount() {
+                return listData.size();
+            }
+
+            @Override
+            public Object getItem(int position) {
+                return listData.get(position);
+            }
+
+            @Override
+            public long getItemId(int position) {
+                return position;
+            }
+
+            @Override
+            public View getView(int position, View convertView, ViewGroup parent) {
+                View view = convertView;
+                ViewHolder holder;
+                if (view == null) {
+                    LayoutInflater inflater =
+                            (LayoutInflater) getSystemService(Context.LAYOUT_INFLATER_SERVICE);
+                    view = inflater.inflate(R.layout.item_downloadstatus, null);
+                    holder = new ViewHolder();
+                    holder.bookName = (TextView) view.findViewById(R.id.bookName);
+                    holder.statusText = (TextView) view.findViewById(R.id.statusText);
+                    holder.speed = (TextView) view.findViewById(R.id.speed);
+                    holder.status = (ProgressBar) view.findViewById(R.id.status);
+                    holder.cancel = (Button) view.findViewById(R.id.cancel);
+                    view.setTag(holder);
+                } else {
+                    holder = (ViewHolder) view.getTag();
+                }
+                Map<String, Object> map = listData.get(position);
+                holder.bookName.setText((String) map.get(keys[0]));
+                holder.statusText.setText((String) map.get(keys[2]));
+                String downloadSpeed = (String) map.get(keys[3]);
+                holder.speed.setText(downloadSpeed + "KB");
+                holder.status.setMax(100);
+                holder.status.setProgress((int) map.get(keys[1]));
+                return view;
+            }
+        };
+        setListAdapter(adapter);
+    }
+
+    class ViewHolder {
+        public TextView bookName;
+        public TextView statusText;
+        public TextView speed;
+        public Button cancel;
+        public ProgressBar status;
     }
 }

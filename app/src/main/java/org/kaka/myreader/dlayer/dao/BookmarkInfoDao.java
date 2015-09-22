@@ -22,7 +22,6 @@ public class BookmarkInfoDao {
         if (exist(entity)) {
             return -1;
         }
-        Log.i("inert id", entity.getId() + "");
         ContentValues values = new ContentValues();
         values.put("id", entity.getId());
         values.put("offset", entity.getOffset());
@@ -32,15 +31,15 @@ public class BookmarkInfoDao {
         return db.insert(TABLE_NAME, null, values);
     }
 
-    public int delete(int id, int offset) {
+    public int delete(String id, int offset) {
         String whereClause = "id=? and offset=?";
-        String[] args = new String[]{id + "", offset + ""};
+        String[] args = new String[]{id, offset + ""};
         return db.delete(TABLE_NAME, whereClause, args);
     }
 
-    public int deleteAll(int id) {
+    public int deleteAll(String id) {
         String whereClause = "id=?";
-        String[] args = new String[]{id + ""};
+        String[] args = new String[]{id};
         return db.delete(TABLE_NAME, whereClause, args);
     }
 
@@ -59,16 +58,15 @@ public class BookmarkInfoDao {
         return result;
     }
 
-    public List<BookmarkInfoEntity> selectById(int id) {
-        Log.i("select id", id + "");
+    public List<BookmarkInfoEntity> selectById(String id) {
         List<BookmarkInfoEntity> result = new ArrayList<>();
         String sql = "select * from " + TABLE_NAME + " where id=? order by addDate";
         Cursor queryCursor = null;
         try {
-            queryCursor = db.rawQuery(sql, new String[]{id + ""});
+            queryCursor = db.rawQuery(sql, new String[]{id});
             while (queryCursor.moveToNext()) {
                 BookmarkInfoEntity entity = new BookmarkInfoEntity();
-                entity.setId(queryCursor.getInt(queryCursor.getColumnIndex("id")));
+                entity.setId(queryCursor.getString(queryCursor.getColumnIndex("id")));
                 entity.setOffset(queryCursor.getInt(queryCursor.getColumnIndex("offset")));
                 entity.setCaptureName(queryCursor.getString(queryCursor.getColumnIndex("captureName")));
                 entity.setProgress(queryCursor.getString(queryCursor.getColumnIndex("progress")));

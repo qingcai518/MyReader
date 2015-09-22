@@ -1,124 +1,109 @@
 package org.kaka.myreader.activity;
 
 import android.app.Activity;
-import android.app.PendingIntent;
-import android.content.BroadcastReceiver;
-import android.content.Context;
+import android.app.ProgressDialog;
 import android.content.Intent;
-import android.content.IntentFilter;
-import android.graphics.Paint;
 import android.os.Bundle;
-import android.telephony.PhoneNumberUtils;
-import android.telephony.SmsManager;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageButton;
-import android.widget.TextView;
+import android.widget.RadioButton;
 import android.widget.Toast;
 
 import org.kaka.myreader.R;
 import org.kaka.myreader.common.AppConstants;
-import org.kaka.myreader.common.AppUtility;
+import org.kaka.myreader.task.UserAddTask;
+
+import java.util.HashMap;
+import java.util.Map;
 
 public class RegisterInfoActivity extends Activity {
-    private String currentCode;
-    private long startTime;
+    private ProgressDialog dialog;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_register_phone);
+        setContentView(R.layout.activity_register_info);
 
         init();
-        registerReceiver(sendMessage, new IntentFilter(AppConstants.BROADCAST_SENT_SMS));
-        registerReceiver(receiver, new IntentFilter(
-                AppConstants.BROADCAST_DELIVERED_SMS));
-    }
-
-    @Override
-    public void onDestroy() {
-        super.onDestroy();
-        if (sendMessage != null) {
-            unregisterReceiver(sendMessage);
-        }
-        if (receiver != null) {
-            unregisterReceiver(receiver);
-        }
     }
 
     private void init() {
-        TextView registByMail = (TextView) findViewById(R.id.registByMail);
-        registByMail.getPaint().setFlags(Paint.UNDERLINE_TEXT_FLAG);
-        registByMail.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Intent intent = new Intent(RegisterInfoActivity.this, RegisterByMailActivity.class);
-                startActivity(intent);
-                overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
-            }
-        });
-
-        final EditText phoneNumberText = (EditText) findViewById(R.id.phoneNumber);
-
         ImageButton btnBack = (ImageButton) findViewById(R.id.back);
         btnBack.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                finish();
+                RegisterInfoActivity.this.finish();
             }
         });
 
-        Button btnNext = (Button) findViewById(R.id.next);
-        btnNext.setOnClickListener(new View.OnClickListener() {
+        Intent intent = getIntent();
+        final String userId = intent.getStringExtra(AppConstants.KEY_INFO);
+        final int userType = intent.getIntExtra(AppConstants.KEY_REGIST_TYPE, AppConstants.TYPE_PHONE);
+
+        final EditText userNameText = (EditText) findViewById(R.id.userName);
+        final EditText passwordText = (EditText) findViewById(R.id.password);
+        final EditText confirmPasswordText = (EditText) findViewById(R.id.confirmPassword);
+        final RadioButton btnMale = (RadioButton) findViewById(R.id.male);
+        btnMale.setChecked(true);
+
+        Button btnFinish = (Button) findViewById(R.id.finish);
+        btnFinish.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                SmsManager smsManager = SmsManager.getDefault();
-                String phoneNumber = phoneNumberText.getText().toString();
-                if (!PhoneNumberUtils.isGlobalPhoneNumber(phoneNumber)) {
+                String userName = userNameText.getText().toString();
+                String password = passwordText.getText().toString();
+                String confirm = confirmPasswordText.getText().toString();
+                if (userName.trim().length() == 0) {
+                    userNameText.setFocusable(true);
+                    userNameText.requestFocus();
+                    Toast.makeText(RegisterInfoActivity.this, "请输入昵称", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
-                if (currentCode == null) {
-                    currentCode = AppUtility.getAuthCode(AppConstants.AUTH_CODE_DIGITS);
-                    startTime = System.currentTimeMillis();
-                } else {
-                    long currentTime = System.currentTimeMillis();
-                    if (currentTime - startTime > AppConstants.AUTH_CODE_EXPIRE) {
-                        currentCode = AppUtility.getAuthCode(AppConstants.AUTH_CODE_DIGITS);
-                        startTime = System.currentTimeMillis();
-                    }
+                if (password.trim().length() == 0) {
+                    passwordText.setFocusable(true);
+                    passwordText.requestFocus();
+                    Toast.makeText(RegisterInfoActivity.this, "请输入密码", Toast.LENGTH_SHORT).show();
+                    return;
                 }
 
-                Intent sentIntent = new Intent(AppConstants.BROADCAST_SENT_SMS);
-                PendingIntent sentPI = PendingIntent.getBroadcast(RegisterInfoActivity.this, 0, sentIntent, 0);
+                if (!confirm.equals(password)) {
+                    confirmPasswordText.setFocusable(true);
+                    confirmPasswordText.requestFocus();
+                    Toast.makeText(RegisterInfoActivity.this, "两次密码不一致", Toast.LENGTH_SHORT).show();
+                    return;
+                }
 
-                Intent deliverIntent = new Intent(AppConstants.BROADCAST_DELIVERED_SMS);
-                PendingIntent deliverPI = PendingIntent.getBroadcast(RegisterInfoActivity.this, 0, deliverIntent, 0);
+                String sex = btnMale.isChecked() ? "male" : "female";
 
-                smsManager.sendTextMessage(phoneNumber, null, currentCode, sentPI, deliverPI);
+                Map<String, String> map = new HashMap<>();
+                map.put("userId", userId);
+                map.put("userType", String.valueOf(userType));
+                map.put("userName", userName);
+                map.put("password", password);
+                map.put("sex", sex);
+
+                dialog = ProgressDialog.show(RegisterInfoActivity.this, "请稍等", "用户登录中");
+                new UserAddTask(RegisterInfoActivity.this).execute(map);
             }
         });
     }
 
-    private BroadcastReceiver sendMessage = new BroadcastReceiver() {
+    public void finishTask(int result) {
+        if (dialog != null) {
+            dialog.dismiss();
+        }
 
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            switch (getResultCode()) {
-                case Activity.RESULT_OK:
-                    Toast.makeText(context, "发送成功", Toast.LENGTH_SHORT).show();
-                    break;
-                default:
-                    Toast.makeText(context, "发送失败", Toast.LENGTH_SHORT).show();
-                    break;
-            }
+        if (result == 0) {
+            Toast.makeText(this, "注册成功", Toast.LENGTH_SHORT).show();
+//            Intent intent = new Intent(this, MainActivity.class);
+//            startActivity(intent);
+            setResult(Activity.RESULT_OK);
+            finish();
+        } else {
+            Toast.makeText(this, "注册失败,请检查网络连接", Toast.LENGTH_SHORT).show();
         }
-    };
-    private BroadcastReceiver receiver = new BroadcastReceiver() {
-        @Override
-        public void onReceive(Context context, Intent intent) {
-            Toast.makeText(context, "对方完成接受", Toast.LENGTH_LONG).show();
-        }
-    };
+    }
 }

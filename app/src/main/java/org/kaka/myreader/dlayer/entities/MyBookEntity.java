@@ -3,9 +3,10 @@ package org.kaka.myreader.dlayer.entities;
 import android.graphics.Bitmap;
 
 import java.sql.Timestamp;
+import java.util.Map;
 
 public class MyBookEntity {
-    private int id;
+    private String id;
     private String name;
     private String author;
     private String detail;
@@ -15,11 +16,13 @@ public class MyBookEntity {
     private Timestamp downloadDate;
     private Timestamp readDate;
 
-    public int getId() {
+    private Map<Integer, String> chapterInfo;
+
+    public String getId() {
         return id;
     }
 
-    public void setId(int id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -85,5 +88,13 @@ public class MyBookEntity {
 
     public void setReadDate(Timestamp readDate) {
         this.readDate = readDate;
+    }
+
+    public Map<Integer, String> getChapterInfo() {
+        return chapterInfo;
+    }
+
+    public void setChapterInfo(Map<Integer, String> chapterInfo) {
+        this.chapterInfo = chapterInfo;
     }
 }

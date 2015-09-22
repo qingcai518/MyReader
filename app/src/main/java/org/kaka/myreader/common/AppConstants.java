@@ -1,18 +1,36 @@
 package org.kaka.myreader.common;
 
+import android.os.Environment;
+
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Locale;
 
 public class AppConstants {
-    public final static String BASE_URL = "http://192.168.1.103:80";
-    //public final static String BASE_URL = "http://172.20.10.12:80";
+    //    public final static String BASE_URL = "http://192.168.1.103:80";
+    public final static String BASE_URL = "http://myreader.main.jp";
     public final static String SERVER = BASE_URL + "/service.php";
     public final static String CHAPTER_SERVER = BASE_URL + "/chapterService.php?id=";
-    public final static Integer BUFFER_SIZE = 4096;
-    public final static String TAG1 = "myBooks";
-    public final static String TAG2 = "cloudBooks";
-    public final static String TAG3 = "profile";
+    public final static String USER_SERVER = BASE_URL + "/userService.php?userId=";
+    public final static String USER_ADD_SERVER = BASE_URL + "/insertUser.php";
+    public final static String USER_UPDATE_SERVER = BASE_URL + "/updateUser.php";
+    public final static String LOAD_COMMIT_SERVER = BASE_URL + "/loadCommit.php?id=";
+    public final static String ADD_COMMIT_SERVER = BASE_URL + "/insertCommit.php?";
+
+    public final static String SDCARD_DIR = Environment.getExternalStorageDirectory().getAbsolutePath();
+    public final static String APP_DIR = Environment.getExternalStorageDirectory() + "/MyReader";
+    public final static String APP_DOWNLOAD_DIR = APP_DIR + "/download";
+    public final static String APP_PIC_DIR = APP_DIR + "/pics/";
+    public final static String APP_WIFI_DIR = APP_DIR + "/wifi/";
+    public final static String ID_PREFIX_IMPORT = "import_";
+    public final static String ID_PREFIX_WIFI = "wifi_";
+    public final static int API_LEVEL = android.os.Build.VERSION.SDK_INT;
+
+    public final static Integer BUFFER_SIZE = 8192;
+    public final static String[] TAG_ARRAY = {"myBooks", "cloudBooks", "profile"};
+    //    public final static String TAG1 = "myBooks";
+//    public final static String TAG2 = "cloudBooks";
+//    public final static String TAG3 = "profile";
     public final static String CAPTURE_TAG1 = "capture";
     public final static String CAPTURE_TAG2 = "bookmark";
     public final static String CAPTURE_TAG3 = "note";
@@ -40,4 +58,30 @@ public class AppConstants {
     public final static String PREF_KEY_PLUS_ENABLE = "plusEnable";
     public final static String PREF_KEY_MINUS_ENABLE = "minusEnable";
     public final static String PREF_KEY_REDRINGINDEX = "indexOfRedRing";
+    public final static String PREF_KEY_READ_ORDER = "order";
+    public final static String PREF_KEY_LOGIN = "loginStatus";
+    public final static String PREF_KEY_USERID = "userId";
+    public final static String PREF_KEY_USERNAME = "userName";
+    public final static String PREF_KEY_SEX = "sex";
+    public final static String PREF_KEY_POINT = "point";
+    public final static String PREF_KEY_USER_IMAGE = "userImage";
+
+    public final static String BROADCAST_DOWNLOAD = "myreader.broadcast.download";
+    public final static String BROADCAST_SENT_SMS = "myreader.broadcast.sendSMSAction";
+    public final static String BROADCAST_DELIVERED_SMS = "myreader.broadcast.deliveredSMSAction";
+
+    public final static int ORDER_READTIME = 0;
+    public final static int ORDER_DOWNLOAD = 1;
+    public final static int ORDER_BOOKNAME = 2;
+    public final static int ORDER_AUTHOR = 3;
+
+    public final static int AUTH_CODE_DIGITS = 5;
+    public final static int AUTH_CODE_EXPIRE = 10 * 60 * 1000;  // ms
+
+    public final static String KEY_REGIST_TYPE = "registType";
+    public final static String KEY_INFO = "info";
+    public final static int TYPE_PHONE = 0;
+    public final static int TYPE_MAIL = 1;
+
+    public static String CurrentAuthCode;
 }

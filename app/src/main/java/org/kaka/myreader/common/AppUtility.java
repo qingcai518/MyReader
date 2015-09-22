@@ -3,7 +3,6 @@ package org.kaka.myreader.common;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
-import android.util.Base64;
 import android.util.DisplayMetrics;
 import android.util.Log;
 import android.view.Display;
@@ -28,50 +27,18 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 public class AppUtility {
-    public static void getJSONFromServer(List<Map<String, Object>> listData) {
-        HttpClient client = new DefaultHttpClient();
-        HttpGet request = new HttpGet(AppConstants.SERVER);
-        client.getParams().setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, 3000);
-        try {
-            HttpResponse response = client.execute(request);
-            int responseCode = response.getStatusLine().getStatusCode();
-            if (responseCode != 200) {
-                Log.e("Fail to connect:", responseCode + "");
-            }
 
-            JSONArray array = new JSONArray(EntityUtils.toString(response.getEntity(), "UTF-8"));
-            for (int i = 0; i < array.length(); i++) {
-                JSONArray item = array.getJSONArray(i);
-                Map<String, Object> map = new HashMap<>();
-
-                map.put("id", item.getInt(0));
-                map.put("name", item.getString(1));
-                map.put("author", item.getString(2));
-                map.put("detail", item.getString(3));
-                map.put("path", item.getString(4));
-
-                byte[] data = Base64.decode(item.getString(5), Base64.DEFAULT);
-                Bitmap bitmap = null;
-                if (data.length != 0) {
-                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-                }
-                map.put("image", bitmap);
-                listData.add(map);
-            }
-
-        } catch (IOException | JSONException e) {
-            e.printStackTrace();
-        }
-    }
-
-    public static Map<Integer, String> getChapterInfoJSON(int id) {
+    public static Map<Integer, String> getChapterInfoJSON(String id) {
         Map<Integer, String> result = new LinkedHashMap<>();
         HttpClient client = new DefaultHttpClient();
         HttpGet request = new HttpGet(AppConstants.CHAPTER_SERVER + id);
@@ -159,11 +126,11 @@ public class AppUtility {
         return charset;
     }
 
-    public static List<Map<String, Object>> getData(Context context) {
+    public static List<Map<String, Object>> getData(Context context, int currentOrder) {
         List<Map<String, Object>> listData = new ArrayList<>();
         MyBookDao dao = new DaoFactory(context).getMyBookDao();
 
-        List<MyBookEntity> data = dao.getBooks();
+        List<MyBookEntity> data = dao.getBooks(currentOrder);
 
         for (MyBookEntity entity : data) {
             Map<String, Object> map = new HashMap<>();
@@ -258,12 +225,11 @@ public class AppUtility {
         return builder.toString();
     }
 
-    public static int getVirtualButtonHeight (Context context, Display display, int leftHeight) {
+    public static int getVirtualButtonHeight(Context context, Display display, int leftHeight) {
         int height = 0;
         if (!ViewConfiguration.get(context).hasPermanentMenuKey()) {
             DisplayMetrics displayMetrics = new DisplayMetrics();
-            int API_LEVEL = android.os.Build.VERSION.SDK_INT;
-            if (API_LEVEL >= 17) {
+            if (AppConstants.API_LEVEL >= 17) {
                 display.getRealMetrics(displayMetrics);
             } else {
                 display.getMetrics(displayMetrics);
@@ -273,5 +239,44 @@ public class AppUtility {
         }
 
         return height;
+    }
+
+    public static double getFileSize(File file) {
+        double result = 0;
+        try (FileInputStream fis = new FileInputStream(file)) {
+            result = ((double) fis.available()) / 1024;
+        } catch (Exception e) {
+            Log.e("getFileSize::", e.getMessage());
+        }
+        return result;
+    }
+
+    public static String getDateTime() {
+        SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+        return format.format(new Date());
+    }
+
+    public static String getAuthCode(int digits) {
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < digits; i++) {
+
+            builder.append(String.valueOf(((Double) (Math.random() * 10))).charAt(0));
+        }
+        return builder.toString();
+    }
+
+    public static boolean isMailAddress(String mailAddress) {
+        if (mailAddress == null || mailAddress.length() == 0) {
+            return false;
+        }
+
+//        if (!Pattern.matches("", mailAddress)) {
+//            return false;
+//        }
+        if (!mailAddress.contains("@") || !mailAddress.contains(".")) {
+            return false;
+        }
+
+        return true;
     }
 }
