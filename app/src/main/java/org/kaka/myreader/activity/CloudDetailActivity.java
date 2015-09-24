@@ -143,19 +143,13 @@ public class CloudDetailActivity extends FragmentActivity {
                     }
 
                     String filePath = AppConstants.APP_DOWNLOAD_DIR + fileName;
-                    if (filePath.toLowerCase().endsWith(".txt")) {
-                        Intent intent = new Intent(CloudDetailActivity.this, ReaderActivity.class);
-                        intent.putExtra("id", id);
-                        intent.putExtra("path", filePath);
-                        intent.putExtra("name", bookName);
-                        startActivityForResult(intent, 0);
-                    } else if (filePath.toLowerCase().endsWith(".epub")) {
-                        Intent intent = new Intent(CloudDetailActivity.this, ReaderEpubActivity.class);
-                        intent.putExtra("id", id);
-                        intent.putExtra("path", filePath);
-                        intent.putExtra("name", bookName);
-                        startActivityForResult(intent, 0);
-                    }
+
+                    Intent intent = new Intent(CloudDetailActivity.this, ReaderActivity.class);
+                    intent.putExtra("id", id);
+                    intent.putExtra("path", filePath);
+                    intent.putExtra("name", bookName);
+                    startActivityForResult(intent, 0);
+
                     CloudDetailActivity.this.overridePendingTransition(android.R.anim.slide_in_left, android.R.anim.slide_out_right);
                 }
             });
