@@ -34,7 +34,10 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Pattern;
+
+import nl.siegmann.epublib.domain.Book;
+import nl.siegmann.epublib.domain.Resource;
+import nl.siegmann.epublib.epub.EpubReader;
 
 public class AppUtility {
 
@@ -97,6 +100,19 @@ public class AppUtility {
         long endTime = System.currentTimeMillis();
         Log.e("File read time : ", (endTime - startTime) / 1000 + "s");
         return builder.toString();
+    }
+
+    public static String readEpubFile(String filePath) {
+        String result = null;
+        try {
+            EpubReader epubReader = new EpubReader();
+            Book book = epubReader.readEpub(new FileInputStream(filePath));
+            List<Resource> list = book.getContents();
+        } catch (Exception e) {
+            Log.e("AppUtility", e.getMessage());
+        }
+
+        return result;
     }
 
     public static String getCharset(File file) {

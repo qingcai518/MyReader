@@ -477,16 +477,16 @@ public class MySurfaceView extends GLSurfaceView implements Observer {
     }
 
     public interface BitmapProvider {
-        public Bitmap getBitmap(BitmapState state);
+        Bitmap getBitmap(BitmapState state);
 
-        public void resetOffset();
+        void resetOffset();
 
-        public void backToBefore();
+        void backToBefore();
 
-        public boolean hasNextPage();
+        boolean hasNextPage();
 
-        public boolean hasPrePage();
+        boolean hasPrePage();
 
-        public void updateCurrentOffset();
+        void updateCurrentOffset();
     }
 }

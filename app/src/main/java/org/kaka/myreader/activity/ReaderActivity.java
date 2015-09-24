@@ -170,7 +170,11 @@ public class ReaderActivity extends Activity {
                 double textHeight = Math.ceil(fontMetrics.descent - fontMetrics.ascent);
                 line = (int) (height / (textHeight * lineSpacing)) - 2;
                 String filePath = getIntent().getStringExtra("path");
-                contents = AppUtility.readFile(filePath);
+                if (filePath.toLowerCase().endsWith(".txt")) {
+                    contents = AppUtility.readFile(filePath);
+                } else if (filePath.toLowerCase().endsWith(".epub")) {
+                    contents = AppUtility.readEpubFile(filePath);
+                }
 
                 // get Data from db.
                 id = getIntent().getStringExtra("id");
