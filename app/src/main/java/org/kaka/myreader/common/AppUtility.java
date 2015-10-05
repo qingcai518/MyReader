@@ -20,6 +20,7 @@ import org.kaka.myreader.R;
 import org.kaka.myreader.dlayer.dao.DaoFactory;
 import org.kaka.myreader.dlayer.dao.MyBookDao;
 import org.kaka.myreader.dlayer.entities.MyBookEntity;
+import org.w3c.dom.Document;
 
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
@@ -27,6 +28,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
@@ -38,6 +40,7 @@ import java.util.Map;
 import nl.siegmann.epublib.domain.Book;
 import nl.siegmann.epublib.domain.Resource;
 import nl.siegmann.epublib.epub.EpubReader;
+import nl.siegmann.epublib.util.ResourceUtil;
 
 public class AppUtility {
 
@@ -102,12 +105,19 @@ public class AppUtility {
         return builder.toString();
     }
 
-    public static String readEpubFile(String filePath) {
+    public static String readEpubFile(String filePath, int index) {
         String result = null;
         try {
             EpubReader epubReader = new EpubReader();
             Book book = epubReader.readEpub(new FileInputStream(filePath));
             List<Resource> list = book.getContents();
+            Resource resource = list.get(index);
+            String encoding = resource.getInputEncoding();
+
+            Document document = ResourceUtil.getAsDocument(resource);
+            // TODO
+            // get <p> and <h2> for contents from document.
+
         } catch (Exception e) {
             Log.e("AppUtility", e.getMessage());
         }
@@ -286,9 +296,6 @@ public class AppUtility {
             return false;
         }
 
-//        if (!Pattern.matches("", mailAddress)) {
-//            return false;
-//        }
         if (!mailAddress.contains("@") || !mailAddress.contains(".")) {
             return false;
         }
