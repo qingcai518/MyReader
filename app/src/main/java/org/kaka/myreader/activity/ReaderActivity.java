@@ -52,7 +52,10 @@ import java.lang.ref.WeakReference;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+
+import nl.siegmann.epublib.domain.Resource;
 
 public class ReaderActivity extends Activity {
     private SharedPreferences preferences;
@@ -87,7 +90,8 @@ public class ReaderActivity extends Activity {
     private boolean isBold;
     private int currentType;
     private boolean isDefaultType = true;
-    int virtualButtonHeight = 0;
+    private int virtualButtonHeight = 0;
+    private List<Resource> resourceList;
 
     private Map<Integer, String> captureMap;
     private ArrayList<Integer> captureOffsets;
@@ -173,7 +177,8 @@ public class ReaderActivity extends Activity {
                 if (filePath.toLowerCase().endsWith(".txt")) {
                     contents = AppUtility.readFile(filePath);
                 } else if (filePath.toLowerCase().endsWith(".epub")) {
-                    contents = AppUtility.readEpubFile(filePath);
+                    resourceList = AppUtility.readEpubFile(filePath);
+                    contents = AppUtility.getEpubContent(resourceList, 1);
                 }
 
                 // get Data from db.
