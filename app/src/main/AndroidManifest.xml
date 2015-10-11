@@ -22,8 +22,10 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".activity.ReaderActivity"
-            android:label="@string/title_activity_reader"
+            android:name=".activity.ReaderTxtActivity"
+            android:screenOrientation="portrait" />
+        <activity
+            android:name=".activity.ReaderEpubActivity"
             android:screenOrientation="portrait" />
         <activity
             android:name=".activity.ChapterActivity"

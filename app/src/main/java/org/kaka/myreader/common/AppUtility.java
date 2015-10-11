@@ -109,7 +109,7 @@ public class AppUtility {
     }
 
     public static List<Resource> readEpubFile(String filePath) {
-        List<Resource> list = null;
+        List<Resource> list = new ArrayList<>();
         try {
             EpubReader epubReader = new EpubReader();
             Book book = epubReader.readEpub(new FileInputStream(filePath));
@@ -142,6 +142,30 @@ public class AppUtility {
         }
 
         return builder.toString();
+    }
+
+    public static String[] getChapterNames(List<Resource> resourceList) {
+        List<String> nameList = new ArrayList<>();
+        if (resourceList != null) {
+            for (int index =1; index < resourceList.size(); index++) {
+                Resource resource = resourceList.get(index);
+                try {
+                    Document document = ResourceUtil.getAsDocument(resource);
+                    Element element = document.getDocumentElement();
+                    NodeList cList = element.getElementsByTagName("h2");
+                    StringBuilder builder = new StringBuilder();
+                    for (int i = 0; i < cList.getLength(); i++) {
+                        Node node = cList.item(i);
+                        String content = node.getTextContent();
+                        builder.append(content);
+                    }
+                    nameList.add(builder.toString());
+                } catch (Exception e) {
+                    Log.e("AppUtility", e.getMessage());
+                }
+            }
+        }
+        return nameList.toArray(new String[nameList.size()]);
     }
 
     public static String getCharset(File file) {

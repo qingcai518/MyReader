@@ -144,7 +144,12 @@ public class CloudDetailActivity extends FragmentActivity {
 
                     String filePath = AppConstants.APP_DOWNLOAD_DIR + fileName;
 
-                    Intent intent = new Intent(CloudDetailActivity.this, ReaderActivity.class);
+                    Intent intent;
+                    if (path.toLowerCase().endsWith(".txt")) {
+                        intent = new Intent(CloudDetailActivity.this, ReaderTxtActivity.class);
+                    } else {
+                        intent = new Intent(CloudDetailActivity.this, ReaderEpubActivity.class);
+                    }
                     intent.putExtra("id", id);
                     intent.putExtra("path", filePath);
                     intent.putExtra("name", bookName);

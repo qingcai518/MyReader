@@ -7,23 +7,17 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.drawable.BitmapDrawable;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.LayerDrawable;
-import android.os.AsyncTask;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Message;
 import android.provider.Settings;
-import android.text.Layout;
-import android.text.StaticLayout;
 import android.text.TextPaint;
 import android.util.Log;
 import android.view.Display;
@@ -42,44 +36,41 @@ import org.kaka.myreader.R;
 import org.kaka.myreader.common.AppConstants;
 import org.kaka.myreader.common.AppUtility;
 import org.kaka.myreader.dlayer.dao.BookmarkInfoDao;
-import org.kaka.myreader.dlayer.dao.CaptureInfoDao;
 import org.kaka.myreader.dlayer.dao.DaoFactory;
 import org.kaka.myreader.dlayer.dao.MyBookDao;
 import org.kaka.myreader.dlayer.entities.BookmarkInfoEntity;
 import org.kaka.myreader.opengl.MySurfaceView;
 
 import java.lang.ref.WeakReference;
-import java.util.ArrayList;
 import java.util.Date;
-import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
-import nl.siegmann.epublib.domain.Resource;
+public abstract class AbstractReaderActivity extends Activity {
+    protected ProgressDialog readChapterDialog;
+    protected String contents;
+    protected int line;
+    protected int width;
+    protected int height;
+    protected float lineSpacing = 1.2f;
+    protected TextPaint paint;
+    protected int currentColor = Color.WHITE;
+    protected int startOffset = 0;
+    protected String id;
+    protected DaoFactory factory;
+    protected MyBookDao myBookDao;
+    protected MyHandler handler = new MyHandler(this);
+    protected MySurfaceView myView;
+    protected TextView progressRateView;
+    protected Map<Integer, String> chapterMap;
+    protected String[] captureNames;
+    protected Map<Integer, Integer> offsetMap;
+    protected Map<Integer, Integer> offsetOppMap;
 
-public class ReaderActivity extends Activity {
+    private final static String text = "Aa";
+    private BookmarkInfoDao bookmarkInfoDao;
+    private BroadcastReceiver receiver;
     private SharedPreferences preferences;
     private ProgressDialog dialog;
-    private ProgressDialog readChapterDialog;
-    private String contents;
-    private int line;
-    private int width;
-    private int height;
-    private float lineSpacing = 1.2f;
-    private TextPaint paint;
-    private int currentColor = Color.WHITE;
-    private int startOffset = 0;
-    private int endOffset = 0;
-    private int startOffsetBefore = 0;
-    private int endOffsetBefore = 0;
-    private String id;
-    private DaoFactory factory;
-    private MyBookDao myBookDao;
-    private BookmarkInfoDao bookmarkInfoDao;
-    private MyHandler handler = new MyHandler(this);
-    private BroadcastReceiver receiver;
-    private MySurfaceView myView;
-    private TextView progressRateView;
     private TextView batteryInfoView;
     private TextView currentTimeView;
     private PopupWindow popupTopWindow;
@@ -91,23 +82,7 @@ public class ReaderActivity extends Activity {
     private int currentType;
     private boolean isDefaultType = true;
     private int virtualButtonHeight = 0;
-    private List<Resource> resourceList;
-
-    private Map<Integer, String> captureMap;
-    private ArrayList<Integer> captureOffsets;
-    private String[] captureNames;
-    private int currentCapture;
-    private int prePageStart;
-    private int nextPageEnd;
     private float fontSize;
-
-    private FileReadTask task0;
-    private FileReadTask task1;
-    private FileReadTask task2;
-
-    private Map<Integer, Integer> offsetMap;
-    private Map<Integer, Integer> offsetOppMap;
-
     private static int VISIBLE_HIDE = View.SYSTEM_UI_FLAG_LAYOUT_STABLE
             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -174,29 +149,17 @@ public class ReaderActivity extends Activity {
                 double textHeight = Math.ceil(fontMetrics.descent - fontMetrics.ascent);
                 line = (int) (height / (textHeight * lineSpacing)) - 2;
                 String filePath = getIntent().getStringExtra("path");
-                if (filePath.toLowerCase().endsWith(".txt")) {
-                    contents = AppUtility.readFile(filePath);
-                } else if (filePath.toLowerCase().endsWith(".epub")) {
-                    resourceList = AppUtility.readEpubFile(filePath);
-                    contents = AppUtility.getEpubContent(resourceList, 1);
-                }
+                getContents(filePath);
 
                 // get Data from db.
                 id = getIntent().getStringExtra("id");
-                factory = new DaoFactory(ReaderActivity.this);
+                factory = new DaoFactory(AbstractReaderActivity.this);
                 myBookDao = factory.getMyBookDao();
                 startOffset = myBookDao.getCurrentOffset(id);
                 myBookDao.updateReadTime(id);
 
                 // capture info
-                CaptureInfoDao captureInfoDao = factory.getCaptureInfoDao();
-                captureMap = captureInfoDao.getCaptureInfo(id);
-                if (captureMap.size() == 0) {
-                    captureMap = AppUtility.getCaptureInfo(contents);
-                }
-
-                captureOffsets = new ArrayList<>(captureMap.keySet());
-                captureNames = captureMap.values().toArray(new String[captureMap.size()]);
+                getChapters();
                 createChapterInfo();
 
                 // bookmarkInfo.
@@ -213,15 +176,7 @@ public class ReaderActivity extends Activity {
             myView.onResume();
             getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
         }
-        if (task0 != null && task0.getStatus() == AsyncTask.Status.RUNNING) {
-            task0.cancel(true);
-        }
-        if (task1 != null && task1.getStatus() == AsyncTask.Status.RUNNING) {
-            task1.cancel(true);
-        }
-        if (task2 != null && task2.getStatus() == AsyncTask.Status.RUNNING) {
-            task2.cancel(true);
-        }
+        releaseTask();
         super.onResume();
     }
 
@@ -231,15 +186,7 @@ public class ReaderActivity extends Activity {
             myView.onResume();
             getWindow().getDecorView().setSystemUiVisibility(VISIBLE_HIDE);
         }
-        if (task0 != null && task0.getStatus() == AsyncTask.Status.RUNNING) {
-            task0.cancel(true);
-        }
-        if (task1 != null && task1.getStatus() == AsyncTask.Status.RUNNING) {
-            task1.cancel(true);
-        }
-        if (task2 != null && task2.getStatus() == AsyncTask.Status.RUNNING) {
-            task2.cancel(true);
-        }
+        releaseTask();
         super.onRestart();
     }
 
@@ -322,10 +269,10 @@ public class ReaderActivity extends Activity {
         isDefaultType = preferences.getBoolean(AppConstants.PREF_KEY_DEFUALTTYPE, true);
     }
 
-    private void getView() {
+    protected void getView() {
         myView = (MySurfaceView) findViewById(R.id.myView);
         myView.setBackgroundColor(currentColor);
-        myView.setBitmapProvider(new BitmapProvider());
+        setProvider();
         myView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -345,60 +292,6 @@ public class ReaderActivity extends Activity {
         dialog.dismiss();
     }
 
-    private void createChapterInfo() {
-        int preCaptureOffset = 0;
-        int currentCaptureOffset = 0;
-        int nextCaptureOffset = 0;
-
-        for (int offset : captureOffsets) {
-            if (startOffset < offset) {
-                nextCaptureOffset = offset;
-                break;
-            }
-            preCaptureOffset = currentCaptureOffset;
-            currentCaptureOffset = offset;
-        }
-
-        offsetMap = new HashMap<>();
-        offsetOppMap = new HashMap<>();
-
-        if (currentCaptureOffset > 0) {
-            makePageOffsets(preCaptureOffset, currentCaptureOffset);
-        }
-
-        String currentContent = nextCaptureOffset > 0 ? contents.substring(currentCaptureOffset, nextCaptureOffset) : contents.substring(currentCaptureOffset);
-        currentContent = changeText(currentContent);
-        StaticLayout currentLayout = new StaticLayout(currentContent, 0, currentContent.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
-        int lineCount = currentLayout.getLineCount();
-        boolean hasStartOffset = false;
-        int nearestOffset = 0;
-        for (int i = 0; i < lineCount; i += line) {
-            int start = currentCaptureOffset + currentLayout.getLineStart(i);
-            if (start < startOffset) {
-                nearestOffset = start;
-            } else if (start == startOffset) {
-                hasStartOffset = true;
-            }
-            int endLine = i + line > lineCount ? lineCount : i + line;
-            int end = currentCaptureOffset + currentLayout.getLineEnd(endLine - 1);
-
-            if (start == end) {
-                continue;
-            }
-            offsetMap.put(start, end);
-            offsetOppMap.put(end, start);
-        }
-
-        // 因为字体变化而导致起点位置变化的时候，找和变化前最近的起点.
-        if (!hasStartOffset) {
-            startOffset = nearestOffset;
-        }
-
-        doReadTask(currentCaptureOffset);
-
-        Log.i("current", currentCaptureOffset + "->" + nextCaptureOffset);
-    }
-
     private void addBroadcastReceiver() {
         batteryInfoView = (TextView) findViewById(R.id.batteryInfo);
         currentTimeView = (TextView) findViewById(R.id.currentTime);
@@ -410,7 +303,8 @@ public class ReaderActivity extends Activity {
             public void onReceive(Context context, Intent intent) {
                 String action = intent.getAction();
                 if (action.equals(Intent.ACTION_BATTERY_CHANGED)) {
-                    batteryInfoView.setText("电量:" + intent.getIntExtra("level", 0) + "%");
+                    String info = "电量:" + intent.getIntExtra("level", 0) + "%";
+                    batteryInfoView.setText(info);
                 } else if (action.equals(Intent.ACTION_TIME_TICK)) {
                     currentTimeView.setText(AppConstants.DATE_FORMAT.format(new Date()));
                 }
@@ -428,12 +322,12 @@ public class ReaderActivity extends Activity {
 
         View popupView = getLayoutInflater().inflate(R.layout.setting_top, null);
         Button backBtn = (Button) popupView.findViewById(R.id.back);
-        backBtn.setText(ReaderActivity.this.getIntent().getStringExtra("name"));
+        backBtn.setText(AbstractReaderActivity.this.getIntent().getStringExtra("name"));
         backBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                ReaderActivity.this.setResult(RESULT_OK);
-                ReaderActivity.this.finish();
+                AbstractReaderActivity.this.setResult(RESULT_OK);
+                AbstractReaderActivity.this.finish();
             }
         });
 
@@ -444,13 +338,13 @@ public class ReaderActivity extends Activity {
                 BookmarkInfoEntity entity = new BookmarkInfoEntity();
                 entity.setId(id);
                 entity.setOffset(startOffset);
-                entity.setCaptureName(captureNames[captureOffsets.indexOf(currentCapture)]);
+                entity.setChapterName(getChapterName());
                 entity.setProgress(progressRateView.getText().toString());
                 bookmarkInfoDao.insert(entity);
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
                 }
-                Toast.makeText(ReaderActivity.this, "追加书签完毕", Toast.LENGTH_SHORT).show();
+                Toast.makeText(AbstractReaderActivity.this, "追加书签完毕", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -475,22 +369,23 @@ public class ReaderActivity extends Activity {
         });
     }
 
+    abstract protected String getChapterName();
+
     private void showSettingBottomWindow() {
         popupBottomWindow = new PopupWindow(this);
 
         View popupView = getLayoutInflater().inflate(R.layout.setting_bottom, null);
         TextView seekText = (TextView) popupView.findViewById(R.id.seekText);
-        seekText.setText(captureNames[captureOffsets.indexOf(currentCapture)]);
+        seekText.setText(getChapterName());
         Button btnCat = (Button) popupView.findViewById(R.id.catalogue);
         btnCat.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                Intent intent = new Intent(ReaderActivity.this, ChapterActivity.class);
+                Intent intent = new Intent(AbstractReaderActivity.this, ChapterActivity.class);
                 intent.putExtra("id", id);
                 intent.putExtra("captureNames", captureNames);
-                intent.putIntegerArrayListExtra("offsets", captureOffsets);
-                intent.putExtra("currentCapture", currentCapture);
-                intent.putExtra("name", ReaderActivity.this.getIntent().getStringExtra("name"));
+                setIntentChapterInfo(intent);
+                intent.putExtra("name", AbstractReaderActivity.this.getIntent().getStringExtra("name"));
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
                 }
@@ -563,7 +458,7 @@ public class ReaderActivity extends Activity {
         });
 
         final Button btnPre = (Button) popupView.findViewById(R.id.preChapter);
-        if (currentCapture == 0) {
+        if (!hasPreChapter()) {
             btnPre.setEnabled(false);
             btnPre.setTextColor(Color.GRAY);
         } else {
@@ -572,7 +467,7 @@ public class ReaderActivity extends Activity {
         }
 
         final Button btnNext = (Button) popupView.findViewById(R.id.nextChapter);
-        if (currentCapture == captureOffsets.get(captureOffsets.size() - 1)) {
+        if (!hasNextChapter()) {
             btnNext.setEnabled(false);
             btnNext.setTextColor(Color.GRAY);
         } else {
@@ -583,24 +478,10 @@ public class ReaderActivity extends Activity {
         btnPre.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                int index = captureOffsets.indexOf(currentCapture) - 1;
-                if (index < 0) {
-                    btnPre.setEnabled(false);
-                    btnPre.setTextColor(Color.GRAY);
-                    return;
-                }
-                startOffset = captureOffsets.get(index);
-                myView.update();
-                btnNext.setEnabled(true);
-                btnNext.setTextColor(Color.WHITE);
+                getPreChapter(btnPre, btnNext);
+
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
-                }
-                doReadTask(currentCapture);
-                int preIndex = index - 1;
-                if (preIndex >= 0) {
-                    int preOffset = captureOffsets.get(preIndex);
-                    doReadTask(preOffset);
                 }
             }
         });
@@ -608,36 +489,18 @@ public class ReaderActivity extends Activity {
         btnNext.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                int index = captureOffsets.indexOf(currentCapture) + 1;
-                if (index >= captureOffsets.size()) {
-                    btnNext.setEnabled(false);
-                    btnNext.setTextColor(Color.GRAY);
-                    return;
-                }
+                getNextChapter(btnPre, btnNext);
 
-                startOffset = captureOffsets.get(index);
-                myView.update();
-                btnPre.setEnabled(true);
-                btnPre.setTextColor(Color.WHITE);
                 if (popupTopWindow != null && popupTopWindow.isShowing()) {
                     popupTopWindow.dismiss();
                 }
-                doReadTask(currentCapture);
             }
         });
 
         SeekBar progressSeek = (SeekBar) popupView.findViewById(R.id.progressSeek);
         progressSeek.setMax(100);
-        int index = captureOffsets.indexOf(currentCapture) + 1;
-        int nextChapterOffset;
-        if (index < captureOffsets.size()) {
-            nextChapterOffset = captureOffsets.get(index) - 1;
-        } else {
-            nextChapterOffset = contents.length() - 1;
-        }
-
-        final int distance = nextChapterOffset - currentCapture;
-        int progress = (startOffset - currentCapture) * 100 / distance;
+        final int distance = getDistance();
+        int progress = getProgress(distance);
         progressSeek.setProgress(progress);
         Log.i("seek to", progress + "");
 
@@ -656,7 +519,7 @@ public class ReaderActivity extends Activity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int endOffset = currentCapture + distance * progress / 100;
+                int endOffset = getEndOffset(distance, progress);
                 int nearestOffset = 0;
                 for (int key : offsetMap.keySet()) {
                     if (key <= endOffset) {
@@ -696,7 +559,7 @@ public class ReaderActivity extends Activity {
 
             final int index = i;
             final Button btnColorSet = new Button(this);
-            btnColorSet.setText("Aa");
+            btnColorSet.setText(text);
             btnColorSet.setTextSize(12);
             // setColor to button.
             btnContent.setColor(getResources().getColor(CANVAS_COLORS[index]));
@@ -763,7 +626,7 @@ public class ReaderActivity extends Activity {
 
         final SeekBar lightSeek = (SeekBar) popupView.findViewById(R.id.lightProgress);
         lightSeek.setMax(255);
-        WindowManager.LayoutParams params = ReaderActivity.this.getWindow().getAttributes();
+        WindowManager.LayoutParams params = AbstractReaderActivity.this.getWindow().getAttributes();
         Log.i("test", "" + params.screenBrightness);
         int lightNow = (int) (params.screenBrightness * 255);
         if (lightNow == -255) {
@@ -778,9 +641,9 @@ public class ReaderActivity extends Activity {
         lightSeek.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
             public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                WindowManager.LayoutParams params = ReaderActivity.this.getWindow().getAttributes();
+                WindowManager.LayoutParams params = AbstractReaderActivity.this.getWindow().getAttributes();
                 params.screenBrightness = progress / 255f;
-                ReaderActivity.this.getWindow().setAttributes(params);
+                AbstractReaderActivity.this.getWindow().setAttributes(params);
             }
 
             @Override
@@ -874,7 +737,7 @@ public class ReaderActivity extends Activity {
         isSettingPopup = true;
     }
 
-    private String changeText(String str) {
+    protected String changeText(String str) {
         if (!isDefaultType && currentType == AppConstants.TYPE_ZH) {
             str = AppUtility.convertS2J(str);
         } else if (!isDefaultType && currentType == AppConstants.TYPE_TW) {
@@ -883,329 +746,16 @@ public class ReaderActivity extends Activity {
         return str;
     }
 
-    private void resetOffsetMap() {
-        Paint.FontMetrics fontMetrics = paint.getFontMetrics();
-        double textHeight = Math.ceil(fontMetrics.descent - fontMetrics.ascent);
-        line = (int) (height / (textHeight * lineSpacing)) - 2;
+    protected static class MyHandler extends Handler {
+        private final WeakReference<AbstractReaderActivity> myWeakReference;
 
-        offsetMap = new HashMap<>();
-        offsetOppMap = new HashMap<>();
-
-        int preCaptureOffset = 0;
-        int currentCaptureOffset = 0;
-        int nextCaptureOffset = 0;
-
-        for (int offset : captureOffsets) {
-            if (startOffset < offset) {
-                nextCaptureOffset = offset;
-                break;
-            }
-            preCaptureOffset = currentCaptureOffset;
-            currentCaptureOffset = offset;
-        }
-
-        if (nextCaptureOffset == 0) {
-            nextCaptureOffset = contents.length();
-        }
-
-        if (currentCaptureOffset > 0) {
-            makePageOffsets(preCaptureOffset, currentCaptureOffset);
-        }
-
-        if (currentCaptureOffset < startOffset) {
-            makePageOffsets(currentCaptureOffset, startOffset);
-        }
-
-        makePageOffsets(startOffset, nextCaptureOffset);
-        doReadTask(currentCaptureOffset);
-    }
-
-    /**
-     * Bitmap provider.
-     */
-    private class BitmapProvider implements MySurfaceView.BitmapProvider {
-        private boolean hasNext = true;
-        private boolean hasPre = true;
-        private boolean hasNextBefore = true;
-        private boolean hasPreBefore = true;
-        private Bitmap bitmap;
-        private boolean readed;
-
-        public void resetOffset() {
-            if (startOffset != 0) {
-                endOffset = startOffset;
-                startOffset = 0;
-            }
-            progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-            hasPre = false;
-        }
-
-        public void backToBefore() {
-            startOffset = startOffsetBefore;
-            endOffset = endOffsetBefore;
-            hasNext = hasNextBefore;
-            hasPre = hasPreBefore;
-            progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-        }
-
-        public boolean hasNextPage() {
-            return hasNext;
-        }
-
-        public boolean hasPrePage() {
-            return hasPre;
-        }
-
-        public void updateCurrentOffset() {
-            myBookDao.updateCurrentOffset(id, startOffset);
-        }
-
-        @Override
-        public Bitmap getBitmap(final MySurfaceView.BitmapState state) {
-
-            bitmap = Bitmap.createBitmap(width, height,
-                    Bitmap.Config.ARGB_8888);
-            Canvas canvas = new Canvas(bitmap);
-            canvas.drawColor(currentColor);
-            canvas.translate(50, 50);
-
-            String subContent = "";
-            if (state == MySurfaceView.BitmapState.Left) {
-                // make left bitmap. not curl.
-                if (startOffset == 0) {
-                    return null;
-                }
-
-                int start;
-                int end = startOffset;
-
-                if (offsetOppMap.containsKey(end)) {
-                    start = offsetOppMap.get(end);
-                } else {
-                    readPreCaptureInfo(end);
-                    start = prePageStart;
-                }
-
-                subContent = contents.substring(start, end);
-            } else if (state == MySurfaceView.BitmapState.ToPreLeft) {
-                startOffsetBefore = startOffset;
-                endOffsetBefore = endOffset;
-                hasNextBefore = hasNext;
-                hasPreBefore = hasPre;
-                // when curl to left. need to create pre-left bitmap.
-                int preStart;
-                int preEnd;
-
-                endOffset = startOffset;
-                if (offsetOppMap.containsKey(endOffset)) {
-                    startOffset = offsetOppMap.get(endOffset);
-                    if (startOffset == 0) {
-                        hasPre = false;
-                        currentCapture = 0;
-                        return null;
-                    }
-
-                    preEnd = startOffset;
-                    if (offsetOppMap.containsKey(preEnd)) {
-                        preStart = offsetOppMap.get(preEnd);
-                    } else {
-                        readPreCaptureInfo(startOffset);
-                        preStart = prePageStart;
-                    }
-                } else {
-                    readPreCaptureInfo(startOffset);
-                    startOffset = prePageStart;
-                    if (startOffset == 0) {
-                        hasPre = false;
-                        return null;
-                    }
-                    preEnd = startOffset;
-                    if (offsetOppMap.containsKey(preEnd)) {
-                        preStart = offsetOppMap.get(preEnd);
-                    } else {
-                        readPreCaptureInfo(startOffset);
-                        preStart = prePageStart;
-                    }
-                }
-
-                hasPre = true;
-                hasNext = endOffset != contents.length();
-
-                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-                Log.d("pre-left", preStart + ", " + preEnd);
-                Log.d("left", startOffset + ", " + endOffset);
-                subContent = contents.substring(preStart, preEnd);
-
-                // insert to myBooks.
-                myBookDao.updateCurrentOffset(id, startOffset);
-            } else if (state == MySurfaceView.BitmapState.Right || state == MySurfaceView.BitmapState.ToRight) {
-                // make right page
-                if (state == MySurfaceView.BitmapState.ToRight) {
-                    startOffsetBefore = startOffset;
-                    endOffsetBefore = endOffset;
-                    hasNextBefore = hasNext;
-                    hasPreBefore = hasPre;
-
-                    startOffset = endOffset;
-                }
-                if (offsetMap.containsKey(startOffset)) {
-                    endOffset = offsetMap.get(startOffset);
-                } else {
-                    readNextCaptureInfo(startOffset);
-                    endOffset = nextPageEnd;
-                }
-
-                hasNext = endOffset != contents.length();
-                hasPre = startOffset != 0;
-
-                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-                Log.i("start - end", startOffset + ", " + endOffset);
-                subContent = contents.substring(startOffset, endOffset);
-
-                // insert to myBooks.
-                myBookDao.updateCurrentOffset(id, startOffset);
-            }
-
-            subContent = changeText(subContent);
-            StaticLayout staticLayout = new StaticLayout(subContent, 0, subContent.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
-
-            // current capture position.
-            int oldCapture = currentCapture;
-            if (state != MySurfaceView.BitmapState.Left) {
-                boolean found = false;
-                for (int i = 0; i < captureOffsets.size() - 1; i++) {
-                    if (startOffset >= captureOffsets.get(i) && startOffset < captureOffsets.get(i + 1)) {
-                        currentCapture = captureOffsets.get(i);
-                        found = true;
-                        break;
-                    }
-                }
-                if (!found) {
-                    currentCapture = captureOffsets.get(captureOffsets.size() - 1);
-                }
-            }
-            if (oldCapture != currentCapture) {
-                readed = false;
-            }
-            if (!readed && (state == MySurfaceView.BitmapState.ToPreLeft || state == MySurfaceView.BitmapState.ToRight)) {
-                doReadTask(currentCapture);
-                readed = true;
-            }
-
-            staticLayout.draw(canvas);
-            Drawable drawable = new BitmapDrawable(getResources(), bitmap);
-            drawable.draw(canvas);
-
-            return bitmap;
-        }
-    }
-
-    private void readPreCaptureInfo(final int startOffset) {
-        readChapterDialog = ProgressDialog.show(ReaderActivity.this, "请稍后", "加载上一章中...");
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                prePageStart = 0;
-                long startTime = System.currentTimeMillis();
-                int index = captureOffsets.indexOf(startOffset);
-                if (index < 1) {
-                    handler.sendEmptyMessage(1);
-                    return;
-                }
-                int preCaptureOffset = captureOffsets.get(index - 1);
-                String preContent = contents.substring(preCaptureOffset, startOffset);
-                preContent = changeText(preContent);
-                StaticLayout preLayout = new StaticLayout(preContent, 0, preContent.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
-
-                int lineCount = preLayout.getLineCount();
-                int start = 0;
-                for (int i = 0; i < lineCount; i += line) {
-                    start = preCaptureOffset + preLayout.getLineStart(i);
-                    int endLine = i + line > lineCount ? lineCount : i + line;
-                    int end = preCaptureOffset + preLayout.getLineEnd(endLine - 1);
-
-                    if (start == end) {
-                        continue;
-                    }
-                    offsetMap.put(start, end);
-                    offsetOppMap.put(end, start);
-                }
-                long endTime = System.currentTimeMillis();
-                Log.i("readPre time : ", (endTime - startTime) + "ms");
-
-                prePageStart = start;
-                //return start;
-                handler.sendEmptyMessage(1);
-            }
-        });
-        thread.start();
-    }
-
-    private void readNextCaptureInfo(final int startOffset) {
-        readChapterDialog = ProgressDialog.show(ReaderActivity.this, "请稍后", "加载下一章中...");
-        Thread thread = new Thread(new Runnable() {
-            @Override
-            public void run() {
-                nextPageEnd = 0;
-                int nextCaptureOffset;
-                int captureOffset = startOffset;
-                int index = captureOffsets.indexOf(captureOffset);
-                if (index < 0) {
-                    for (int i = 0; i < captureOffsets.size() - 1; i++) {
-                        if (captureOffsets.get(i) <= captureOffset && captureOffsets.get(i + 1) > captureOffset) {
-                            index = i;
-                            break;
-                        }
-                    }
-                    if (index < 0) {
-                        index = captureOffsets.size() - 1;
-                    }
-                    captureOffset = captureOffsets.get(index);
-                }
-                if (index == captureOffsets.size() - 1) {
-                    nextCaptureOffset = contents.length();
-                } else {
-                    nextCaptureOffset = captureOffsets.get(index + 1);
-                }
-
-                long startTime = System.currentTimeMillis();
-                String nextContent = contents.substring(captureOffset, nextCaptureOffset);
-                nextContent = changeText(nextContent);
-                StaticLayout nextLayout = new StaticLayout(nextContent, 0, nextContent.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
-
-                int lineCount = nextLayout.getLineCount();
-                for (int i = 0; i < lineCount; i += line) {
-                    int start = captureOffset + nextLayout.getLineStart(i);
-                    int endLine = i + line > lineCount ? lineCount : i + line;
-                    int end = captureOffset + nextLayout.getLineEnd(endLine - 1);
-                    if (start == startOffset) {
-                        nextPageEnd = end;
-                    }
-
-                    if (start == end) {
-                        continue;
-                    }
-                    offsetMap.put(start, end);
-                    offsetOppMap.put(end, start);
-                }
-                long endTime = System.currentTimeMillis();
-                Log.i("readNext lining time : ", (endTime - startTime) + "ms");
-                handler.sendEmptyMessage(1);
-            }
-        });
-        thread.start();
-    }
-
-    private static class MyHandler extends Handler {
-        private final WeakReference<ReaderActivity> myWeakReference;
-
-        public MyHandler(ReaderActivity activity) {
+        public MyHandler(AbstractReaderActivity activity) {
             myWeakReference = new WeakReference<>(activity);
         }
 
         @Override
         public void handleMessage(Message msg) {
-            ReaderActivity activity = myWeakReference.get();
+            AbstractReaderActivity activity = myWeakReference.get();
             if (activity == null) {
                 return;
             }
@@ -1222,105 +772,33 @@ public class ReaderActivity extends Activity {
         }
     }
 
-    private void makePageOffsets(int startOffset, int endOffset) {
-        String content = contents.substring(startOffset, endOffset);
-        content = changeText(content);
-        StaticLayout currentLayout = new StaticLayout(content, 0, content.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
-        int lineCount = currentLayout.getLineCount();
-        for (int i = 0; i < lineCount; i += line) {
-            int start = startOffset + currentLayout.getLineStart(i);
-            int endLine = i + line > lineCount ? lineCount : i + line;
-            int end = startOffset + currentLayout.getLineEnd(endLine - 1);
+    abstract protected void resetOffsetMap();
 
-            if (start == end) {
-                continue;
-            }
-            offsetMap.put(start, end);
-            offsetOppMap.put(end, start);
-        }
-    }
+    abstract protected void doReadTask(int currentChapterOffset);
 
-    private void doReadTask(int currentChapterOffset) {
-        int index = captureOffsets.indexOf(currentChapterOffset);
-        int preChapterOffset = 0;
-        if (index > 0) {
-            preChapterOffset = captureOffsets.get(index - 1);
-        }
+    abstract protected void setProvider();
 
-        int beforePreChapterOffset = 0;
-        int beforePreIndex = index - 2;
-        if (beforePreIndex >= 0) {
-            beforePreChapterOffset = captureOffsets.get(beforePreIndex);
-        }
+    abstract protected void createChapterInfo();
 
-        int nextChapterOffset;
-        if (index < captureOffsets.size() - 1) {
-            nextChapterOffset = captureOffsets.get(index + 1);
-        } else {
-            nextChapterOffset = captureOffsets.get(captureOffsets.size() - 1);
-        }
+    abstract protected void releaseTask();
 
-        if (!offsetMap.containsKey(beforePreChapterOffset)) {
-            if (task0 != null && task0.getStatus() == AsyncTask.Status.RUNNING) {
-                task0.cancel(true);
-                Log.i("task0", task0.getStatus().toString());
-            }
-            task0 = new FileReadTask();
-            task0.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, beforePreChapterOffset, preChapterOffset);
-        }
+    abstract protected void getContents(String filePath);
 
+    abstract protected void getChapters();
 
-        if (!offsetMap.containsKey(preChapterOffset)) {
-            if (task1 != null && task1.getStatus() == AsyncTask.Status.RUNNING) {
-                task1.cancel(true);
-                Log.i("task1", task1.getStatus().toString());
-            }
-            task1 = new FileReadTask();
-            task1.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, preChapterOffset, currentChapterOffset);
-        }
+    abstract protected boolean hasPreChapter();
 
-        if (!offsetMap.containsKey(nextChapterOffset)) {
-            int belowChapterOffset;
-            int indexNext = captureOffsets.indexOf(nextChapterOffset);
-            if (indexNext == -1) {
-                return;
-            } else if (indexNext == captureOffsets.size() - 1) {
-                belowChapterOffset = contents.length();
-            } else {
-                belowChapterOffset = captureOffsets.get(indexNext + 1);
-            }
+    abstract protected boolean hasNextChapter();
 
-            if (task2 != null && task2.getStatus() == AsyncTask.Status.RUNNING) {
-                task2.cancel(true);
-                Log.i("task2", task2.getStatus().toString());
-            }
-            task2 = new FileReadTask();
-            task2.executeOnExecutor(AsyncTask.THREAD_POOL_EXECUTOR, nextChapterOffset, belowChapterOffset);
+    abstract protected void getPreChapter(Button btnPre, Button btnNext);
 
-            Log.i("", beforePreChapterOffset + "->" + preChapterOffset);
-            Log.i("", preChapterOffset + "->" + currentChapterOffset);
-            Log.i("", nextChapterOffset + "->" + belowChapterOffset);
-        }
-    }
+    abstract protected void getNextChapter(Button btnPre, Button btnNext);
 
-    public class FileReadTask extends AsyncTask<Integer, Integer, Integer> {
-        @Override
-        protected Integer doInBackground(Integer... params) {
-            Log.i("[Task]", "Read Task start.");
-            long startTime = System.currentTimeMillis();
-            int startOffset = params[0];
-            int endOffset = params[1];
+    abstract protected int getDistance();
 
-            if (offsetMap.containsKey(startOffset)) {
-                return 1;
-            }
+    abstract protected int getProgress(int distance);
 
-            makePageOffsets(startOffset, endOffset);
-            long endTime = System.currentTimeMillis();
+    abstract protected int getEndOffset(int distance, int progress);
 
-            Log.i("[Task]", "Read Task done." + (endTime - startTime) + "ms");
-
-            return 0;
-        }
-    }
+    abstract protected void setIntentChapterInfo(Intent intent);
 }

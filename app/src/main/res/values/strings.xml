@@ -3,7 +3,6 @@
 
     <string name="app_name">MyReader</string>
     <string name="action_settings">Settings</string>
-    <string name="title_activity_reader">ReaderActivity</string>
     <string name="title_activity_capture">CaptureActivity</string>
     <string name="title_activity_fileSearch">FileSearchActivity</string>
     <string name="title_activity_downloadstatus">DownloadStatusActivity</string>

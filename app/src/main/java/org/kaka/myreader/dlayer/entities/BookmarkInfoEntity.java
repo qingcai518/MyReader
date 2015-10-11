@@ -5,7 +5,7 @@ import java.sql.Timestamp;
 public class BookmarkInfoEntity {
     private String id;
     private int offset;
-    private String captureName;
+    private String chapterName;
     private String progress;
     private Timestamp addDate;
 
@@ -25,12 +25,12 @@ public class BookmarkInfoEntity {
         this.offset = offset;
     }
 
-    public String getCaptureName() {
-        return captureName;
+    public String getChapterName() {
+        return chapterName;
     }
 
-    public void setCaptureName(String captureName) {
-        this.captureName = captureName;
+    public void setChapterName(String chapterName) {
+        this.chapterName = chapterName;
     }
 
     public String getProgress() {

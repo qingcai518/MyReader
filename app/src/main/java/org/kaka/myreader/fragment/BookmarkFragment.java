@@ -56,7 +56,7 @@ public class BookmarkFragment extends ListFragment {
                 TextView textView = (TextView) LayoutInflater.from(BookmarkFragment.this.getActivity()).inflate(
                         R.layout.item_bookmark, null);
                 BookmarkInfoEntity entity = list.get(position);
-                textView.setText(entity.getCaptureName() + "  " + entity.getProgress());
+                textView.setText(entity.getChapterName() + "  " + entity.getProgress());
 
                 return textView;
             }

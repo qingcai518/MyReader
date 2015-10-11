@@ -3,7 +3,6 @@ package org.kaka.myreader.dlayer.dao;
 import android.content.ContentValues;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.util.Log;
 
 import org.kaka.myreader.dlayer.entities.BookmarkInfoEntity;
 
@@ -25,7 +24,7 @@ public class BookmarkInfoDao {
         ContentValues values = new ContentValues();
         values.put("id", entity.getId());
         values.put("offset", entity.getOffset());
-        values.put("captureName", entity.getCaptureName());
+        values.put("captureName", entity.getChapterName());
         values.put("progress", entity.getProgress());
 
         return db.insert(TABLE_NAME, null, values);
@@ -68,7 +67,7 @@ public class BookmarkInfoDao {
                 BookmarkInfoEntity entity = new BookmarkInfoEntity();
                 entity.setId(queryCursor.getString(queryCursor.getColumnIndex("id")));
                 entity.setOffset(queryCursor.getInt(queryCursor.getColumnIndex("offset")));
-                entity.setCaptureName(queryCursor.getString(queryCursor.getColumnIndex("captureName")));
+                entity.setChapterName(queryCursor.getString(queryCursor.getColumnIndex("captureName")));
                 entity.setProgress(queryCursor.getString(queryCursor.getColumnIndex("progress")));
 
                 result.add(entity);

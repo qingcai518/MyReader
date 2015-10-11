@@ -37,7 +37,8 @@ import org.kaka.myreader.R;
 import org.kaka.myreader.activity.DownloadStatusActivity;
 import org.kaka.myreader.activity.FileSearchActivity;
 import org.kaka.myreader.activity.MainActivity;
-import org.kaka.myreader.activity.ReaderActivity;
+import org.kaka.myreader.activity.ReaderEpubActivity;
+import org.kaka.myreader.activity.ReaderTxtActivity;
 import org.kaka.myreader.common.AppConstants;
 import org.kaka.myreader.common.AppUtility;
 import org.kaka.myreader.dlayer.dao.BookmarkInfoDao;
@@ -170,7 +171,13 @@ public class LocalBooksFragment extends Fragment {
         String path = (String) map.get("path");
         String name = (String) map.get("name");
 
-        Intent intent = new Intent(getActivity(), ReaderActivity.class);
+        Intent intent;
+        if (path.toLowerCase().endsWith(".txt")) {
+            intent = new Intent(getActivity(), ReaderTxtActivity.class);
+        } else {
+            intent = new Intent(getActivity(), ReaderEpubActivity.class);
+        }
+
         intent.putExtra("id", id);
         intent.putExtra("path", path);
         intent.putExtra("name", name);
