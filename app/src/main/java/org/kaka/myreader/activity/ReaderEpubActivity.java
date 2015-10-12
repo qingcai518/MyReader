@@ -11,17 +11,21 @@ import android.text.Layout;
 import android.text.StaticLayout;
 import android.widget.Button;
 
+import org.kaka.myreader.common.AppConstants;
 import org.kaka.myreader.common.AppUtility;
 import org.kaka.myreader.opengl.MySurfaceView;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import nl.siegmann.epublib.domain.Resource;
 
 public class ReaderEpubActivity extends AbstractReaderActivity {
     private int currentIndex = 1;
     private List<Resource> resourceList;
+    private Map<Integer, List<Integer>> chapterOffsetMap = new HashMap<>();
 
     @Override
     protected void getContents(String filePath) {
@@ -46,7 +50,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
 
     @Override
     protected void getPreChapter(Button btnPre, Button btnNext) {
-        int index = currentIndex  - 1;
+        int index = currentIndex - 1;
         if (index < 1) {
             btnPre.setEnabled(false);
             btnPre.setTextColor(Color.GRAY);
@@ -110,12 +114,9 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
 
     @Override
     protected void createChapterInfo() {
-        offsetMap = new HashMap<>();
-        offsetOppMap = new HashMap<>();
 
         if (currentIndex > 1) {
-            String preContents = AppUtility.getEpubContent(resourceList, currentIndex - 1);
-            makeEpubPageOffsets(preContents);
+            makePageOffsets(currentIndex - 1);
         }
 
         String currentContent = changeText(contents);
@@ -123,6 +124,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         int lineCount = currentLayout.getLineCount();
         boolean hasStartOffset = false;
         int nearestOffset = 0;
+        List<Integer> list = new ArrayList<>();
         for (int i = 0; i < lineCount; i += line) {
             int start = currentLayout.getLineStart(i);
             if (start < startOffset) {
@@ -136,8 +138,15 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
             if (start == end) {
                 continue;
             }
-            offsetMap.put(start, end);
-            offsetOppMap.put(end, start);
+            if (!list.contains(start)) {
+                list.add(start);
+            }
+            if (!list.contains(end)) {
+                list.add(end);
+            }
+        }
+        if (!chapterOffsetMap.containsKey(currentIndex)) {
+            chapterOffsetMap.put(currentIndex, list);
         }
 
         // 因为字体变化而导致起点位置变化的时候，找和变化前最近的起点.
@@ -146,8 +155,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         }
 
         if (currentIndex + 1 < resourceList.size()) {
-            String nextContents = AppUtility.getEpubContent(resourceList, currentIndex + 1);
-            makeEpubPageOffsets(nextContents);
+            makePageOffsets(currentIndex + 1);
         }
     }
 
@@ -156,8 +164,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         double textHeight = Math.ceil(fontMetrics.descent - fontMetrics.ascent);
         line = (int) (height / (textHeight * lineSpacing)) - 2;
 
-        offsetMap = new HashMap<>();
-        offsetOppMap = new HashMap<>();
+        chapterOffsetMap = new HashMap<>();
     }
 
     private class BitmapProvider implements MySurfaceView.BitmapProvider {
@@ -176,21 +183,53 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
             canvas.translate(50, 50);
 
             String subContent = "";
+            List<Integer> list = chapterOffsetMap.get(currentIndex);
+            int index = list.indexOf(startOffset);
             if (state == MySurfaceView.BitmapState.Left) {
-                if (currentIndex > 1) {
-                    subContent = AppUtility.getEpubContent(resourceList, currentIndex - 1);
+                if (index <= 0) {
+                    return null;
                 }
+                int preOffset = list.get(index - 1);
+                subContent = contents.substring(preOffset, startOffset);
+
             } else if (state == MySurfaceView.BitmapState.ToPreLeft) {
-//                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-                currentIndex = currentIndex - 1;
-                subContent = AppUtility.getEpubContent(resourceList, currentIndex);
+                int preOffset;
+                int endOffset = startOffset;
+                if (index < 0) {
+                    return null;
+                } else if (index == 0) {
+                    // TODO should read pre chapter?
+                    return null;
+                } else {
+                    startOffset = list.get(index - 1);
+                    if (index > 1) {
+                        preOffset = list.get(index - 2);
+                    } else {
+                        // TODO should read pre chapter?
+                        return null;
+                    }
+                }
+                subContent = contents.substring(preOffset, startOffset);
+                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
 
                 // insert to myBooks.
                 myBookDao.updateCurrentOffset(id, startOffset);
             } else if (state == MySurfaceView.BitmapState.Right || state == MySurfaceView.BitmapState.ToRight) {
-//                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
-                currentIndex = currentIndex + 1;
-                subContent = AppUtility.getEpubContent(resourceList, currentIndex);
+                if (state == MySurfaceView.BitmapState.ToRight) {
+                    if (index >= list.size() - 1) {
+                        return null;
+                    }
+                    startOffset = list.get(index + 1);
+                }
+                int nextIndex = list.indexOf(startOffset) + 1;
+                if (nextIndex >= list.size()) {
+                    // TODO should read next chapter?
+                    return null;
+                }
+
+                int endOffset = list.get(nextIndex);
+                subContent = contents.substring(startOffset, endOffset);
+                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
 
                 // insert to myBooks.
                 myBookDao.updateCurrentOffset(id, startOffset);
@@ -231,10 +270,12 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         }
     }
 
-    private void makeEpubPageOffsets(String content) {
+    private void makePageOffsets(int index) {
+        String content = AppUtility.getEpubContent(resourceList, index);
         content = changeText(content);
         StaticLayout preLayout = new StaticLayout(content, 0, content.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
         int lineCount = preLayout.getLineCount();
+        List<Integer> list = new ArrayList<>();
         for (int i = 0; i < lineCount; i += line) {
             int start = preLayout.getLineStart(i);
             int endLine = i + line > lineCount ? lineCount : i + line;
@@ -243,8 +284,15 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
             if (start == end) {
                 continue;
             }
-            offsetMap.put(start, end);
-            offsetOppMap.put(end, start);
+            if (!list.contains(start)) {
+                list.add(start);
+            }
+            if (!list.contains(end)) {
+                list.add(end);
+            }
+        }
+        if (!chapterOffsetMap.containsKey(index)) {
+            chapterOffsetMap.put(index, list);
         }
     }
 
