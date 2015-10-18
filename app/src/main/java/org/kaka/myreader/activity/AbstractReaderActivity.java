@@ -47,7 +47,6 @@ import java.util.Map;
 
 public abstract class AbstractReaderActivity extends Activity {
     protected ProgressDialog readChapterDialog;
-    protected String contents;
     protected int line;
     protected int width;
     protected int height;
@@ -773,8 +772,6 @@ public abstract class AbstractReaderActivity extends Activity {
     }
 
     abstract protected void resetOffsetMap();
-
-    abstract protected void doReadTask(int currentChapterOffset);
 
     abstract protected void setProvider();
 

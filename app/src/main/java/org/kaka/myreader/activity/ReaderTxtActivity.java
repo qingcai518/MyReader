@@ -30,6 +30,7 @@ public class ReaderTxtActivity extends AbstractReaderActivity {
     private int nextPageEnd;
     private ArrayList<Integer> captureOffsets;
     private int currentCapture;
+    private String contents;
 
     private FileReadTask task0;
     private FileReadTask task1;
@@ -516,8 +517,7 @@ public class ReaderTxtActivity extends AbstractReaderActivity {
         doReadTask(currentCaptureOffset);
     }
 
-    @Override
-    protected void doReadTask(int currentChapterOffset) {
+    private void doReadTask(int currentChapterOffset) {
         int index = captureOffsets.indexOf(currentChapterOffset);
         int preChapterOffset = 0;
         if (index > 0) {
