@@ -19,6 +19,7 @@ import org.kaka.myreader.opengl.MySurfaceView;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -27,8 +28,8 @@ import nl.siegmann.epublib.domain.Resource;
 public class ReaderEpubActivity extends AbstractReaderActivity {
     private int currentIndex = 1;
     private List<Resource> resourceList;
-    private Map<Integer, List<Integer>> chapterOffsetMap = new HashMap<>();
-    private Map<Integer, String> chapterContentMap = new HashMap<>();
+    private Map<Integer, List<Integer>> chapterOffsetMap = new LinkedHashMap<>();
+    private Map<Integer, String> chapterContentMap = new LinkedHashMap<>();
     private FileReadTask task0, task1, task2;
 
     @Override
@@ -165,17 +166,18 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         double textHeight = Math.ceil(fontMetrics.descent - fontMetrics.ascent);
         line = (int) (height / (textHeight * lineSpacing)) - 2;
 
-        chapterOffsetMap = new HashMap<>();
-        chapterContentMap = new HashMap<>();
+        chapterOffsetMap = new LinkedHashMap<>();
+        chapterContentMap = new LinkedHashMap<>();
     }
 
     private class BitmapProvider implements MySurfaceView.BitmapProvider {
         private boolean hasNext = true;
-        private boolean hasPre = true;
+        private boolean hasPre = false;
         private boolean hasNextBefore = true;
         private boolean hasPreBefore = true;
         private int startOffsetBefore;
         private Bitmap bitmap;
+        private boolean hasRead = false;
 
         public void resetOffset() {
             startOffset = 0;
@@ -184,6 +186,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
             int endOffset = offsetList.get(1);
             progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
             hasPre = false;
+            hasNext = true;
         }
 
         public void backToBefore() {
@@ -233,26 +236,48 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 hasPreBefore = hasPre;
                 // when curl to left.
                 int preOffset;
-                int endOffset = startOffset;
+                int endOffset;
                 if (index <= 0) {
-                    hasPre = false;
-                    return null;
-                } else {
-                    startOffset = list.get(index - 1);
-                    if (index > 1) {
-                        preOffset = list.get(index - 2);
-                    } else {
-                        // TODO should read pre chapter?
+                    if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
                         hasPre = false;
                         return null;
                     }
+                    currentIndex = currentIndex - 1;
+                    List<Integer> preList = chapterOffsetMap.get(currentIndex);
+                    contents = chapterContentMap.get(currentIndex);
+                    hasRead = false;
+                    preOffset = preList.get(preList.size() - 2);
+                    endOffset = preList.get(preList.size() - 1);
+                } else {
+                    endOffset = list.get(index - 1);
+                    if (index > 1) {
+                        preOffset = list.get(index - 2);
+                    } else {
+                        if (!chapterOffsetMap.containsKey(currentIndex -1 )) {
+                            hasPre = false;
+                            return null;
+                        }
+                        currentIndex = currentIndex - 1;
+                        List<Integer> preList = chapterOffsetMap.get(currentIndex);
+                        contents = chapterContentMap.get(currentIndex);
+                        hasRead = false;
+                        preOffset = preList.get(preList.size() - 2);
+                        endOffset = preList.get(preList.size() - 1);
+                    }
                 }
-                hasPre = true;
-                subContent = contents.substring(preOffset, startOffset);
+                subContent = contents.substring(preOffset, endOffset);
+                startOffset = preOffset;
                 progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
+                hasPre = currentIndex > 1 || startOffset > 0;
+                hasNext = true;
 
                 // insert to myBooks.
                 myBookDao.updateCurrentOffset(id, startOffset);
+
+                if (!hasRead) {
+                    doReadTask();
+                    hasRead = true;
+                }
             } else if (state == MySurfaceView.BitmapState.Right) {
                 int nextIndex = list.indexOf(startOffset) + 1;
                 if (nextIndex >= list.size()) {
@@ -281,8 +306,10 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     if (!chapterOffsetMap.containsKey(currentIndex + 1)) {
                         return null;
                     }
-                    List<Integer> nextList = chapterOffsetMap.get(currentIndex + 1);
-                    contents = chapterContentMap.get(currentIndex + 1);
+                    currentIndex = currentIndex + 1;
+                    List<Integer> nextList = chapterOffsetMap.get(currentIndex);
+                    contents = chapterContentMap.get(currentIndex);
+                    hasRead = false;
                     startOffset = nextList.get(0);
                     endOffset = nextList.get(1);
                 }
@@ -290,11 +317,15 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 subContent = contents.substring(startOffset, endOffset);
                 progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
 
-                hasNext = currentIndex < resourceList.size() - 1;
-                hasPre = startOffset != 0;
-
+                hasNext = currentIndex < resourceList.size() - 1 || endOffset < contents.length() - 1;
+                hasPre = true;
                 // insert to myBooks.
                 myBookDao.updateCurrentOffset(id, startOffset);
+
+                if (!hasRead) {
+                    doReadTask();
+                    hasRead = true;
+                }
             }
 
             subContent = changeText(subContent);
