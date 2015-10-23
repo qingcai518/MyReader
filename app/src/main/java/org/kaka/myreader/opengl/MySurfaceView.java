@@ -207,6 +207,7 @@ public class MySurfaceView extends GLSurfaceView implements Observer {
                     case MotionEvent.ACTION_CANCEL:
                     case MotionEvent.ACTION_UP: {
                         if (curlState == MyRenderer.CurlState.Left || curlState == MyRenderer.CurlState.Right) {
+                            Log.i("curlState", curlState.toString());
                             animationSource.set(pointerPos);
                             animationStartTime = System.currentTimeMillis();
 

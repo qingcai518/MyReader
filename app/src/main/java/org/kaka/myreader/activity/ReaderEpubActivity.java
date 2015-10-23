@@ -174,7 +174,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         private boolean hasNext = true;
         private boolean hasPre = false;
         private boolean hasNextBefore = true;
-        private boolean hasPreBefore = true;
+        private boolean hasPreBefore = false;
         private int startOffsetBefore;
         private Bitmap bitmap;
         private boolean hasRead = false;
@@ -234,10 +234,9 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 startOffsetBefore = startOffset;
                 hasNextBefore = hasNext;
                 hasPreBefore = hasPre;
+                int endOffset = startOffset;
                 // when curl to left.
-                int preOffset;
-                int endOffset;
-                if (index <= 0) {
+                if (index < 1) {
                     if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
                         hasPre = false;
                         return null;
@@ -245,28 +244,47 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     currentIndex = currentIndex - 1;
                     List<Integer> preList = chapterOffsetMap.get(currentIndex);
                     contents = chapterContentMap.get(currentIndex);
-                    hasRead = false;
-                    preOffset = preList.get(preList.size() - 2);
-                    endOffset = preList.get(preList.size() - 1);
-                } else {
-                    endOffset = list.get(index - 1);
-                    if (index > 1) {
-                        preOffset = list.get(index - 2);
-                    } else {
-                        if (!chapterOffsetMap.containsKey(currentIndex -1 )) {
+                    int preListSize = preList.size();
+                    startOffset = preList.get(preListSize - 2);
+                    endOffset = preList.get(preListSize - 1);
+
+                    if (preListSize <= 2) {
+                        if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
                             hasPre = false;
                             return null;
                         }
-                        currentIndex = currentIndex - 1;
-                        List<Integer> preList = chapterOffsetMap.get(currentIndex);
-                        contents = chapterContentMap.get(currentIndex);
-                        hasRead = false;
-                        preOffset = preList.get(preList.size() - 2);
-                        endOffset = preList.get(preList.size() - 1);
+//                        currentIndex = currentIndex - 1;
+                        List<Integer> prePreList = chapterOffsetMap.get(currentIndex - 1);
+                        contents = chapterContentMap.get(currentIndex - 1);
+                        int preStartOffset = prePreList.get(prePreList.size() - 2);
+                        int preEndOffset = prePreList.get(prePreList.size() - 1);
+                        subContent = contents.substring(preStartOffset, preEndOffset);
+                    } else {
+                        int preStartOffset = preList.get(preListSize - 3);
+                        int preEndOffset = startOffset;
+                        subContent = contents.substring(preStartOffset, preEndOffset);
+                    }
+                } else {
+                    startOffset = list.get(index - 1);
+                    int preIndex = list.indexOf(startOffset);
+                    if (preIndex < 1) {
+                        if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
+                            hasPre = false;
+                            return null;
+                        }
+//                        currentIndex = currentIndex - 1;
+                        List<Integer> prePreList = chapterOffsetMap.get(currentIndex - 1);
+                        contents = chapterContentMap.get(currentIndex - 1);
+                        int preStartOffset = prePreList.get(prePreList.size() - 2);
+                        int preEndOffset = prePreList.get(prePreList.size() - 1);
+                        subContent = contents.substring(preStartOffset, preEndOffset);
+                    } else {
+                        int preStartOffset = list.get(preIndex - 1);
+                        int preEndOffset = startOffset;
+                        subContent = contents.substring(preStartOffset, preEndOffset);
                     }
                 }
-                subContent = contents.substring(preOffset, endOffset);
-                startOffset = preOffset;
+
                 progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
                 hasPre = currentIndex > 1 || startOffset > 0;
                 hasNext = true;
@@ -289,7 +307,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
 
                 hasNext = currentIndex < resourceList.size() - 1;
-                hasPre = currentIndex != 0;
+                hasPre = currentIndex > 1;
             } else if (state == MySurfaceView.BitmapState.ToRight) {
                 startOffsetBefore = startOffset;
                 hasNextBefore = hasNext;
