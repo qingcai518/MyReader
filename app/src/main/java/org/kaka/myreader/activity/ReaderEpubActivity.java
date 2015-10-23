@@ -18,7 +18,6 @@ import org.kaka.myreader.common.AppUtility;
 import org.kaka.myreader.opengl.MySurfaceView;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,22 +180,20 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
 
         public void resetOffset() {
             startOffset = 0;
-            List<Integer> offsetList = chapterOffsetMap.get(currentIndex);
-            String contents = chapterContentMap.get(currentIndex);
-            int endOffset = offsetList.get(1);
-            progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
+            List<Integer> list = chapterOffsetMap.get(currentIndex);
+            String progress = AppConstants.DECIMAL_FORMAT.format( (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+            progressRateView.setText(progress);
             hasPre = false;
             hasNext = true;
         }
 
         public void backToBefore() {
             startOffset = startOffsetBefore;
-            List<Integer> offsetList = chapterOffsetMap.get(currentIndex);
-            String contents = chapterContentMap.get(currentIndex);
-            int endOffset = offsetList.get(offsetList.indexOf(startOffset) + 1);
+            List<Integer> list = chapterOffsetMap.get(currentIndex);
             hasNext = hasNextBefore;
             hasPre = hasPreBefore;
-            progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
+            String progress = AppConstants.DECIMAL_FORMAT.format( (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+            progressRateView.setText(progress);
         }
 
         public boolean hasNextPage() {
@@ -234,7 +231,6 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 startOffsetBefore = startOffset;
                 hasNextBefore = hasNext;
                 hasPreBefore = hasPre;
-                int endOffset = startOffset;
                 // when curl to left.
                 if (index < 1) {
                     if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
@@ -246,7 +242,6 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     contents = chapterContentMap.get(currentIndex);
                     int preListSize = preList.size();
                     startOffset = preList.get(preListSize - 2);
-                    endOffset = preList.get(preListSize - 1);
 
                     if (preListSize <= 2) {
                         if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
@@ -285,7 +280,8 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     }
                 }
 
-                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
+                String progress = AppConstants.DECIMAL_FORMAT.format( (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+                progressRateView.setText(progress);
                 hasPre = currentIndex > 1 || startOffset > 0;
                 hasNext = true;
 
@@ -304,7 +300,8 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 int endOffset = list.get(nextIndex);
 
                 subContent = contents.substring(startOffset, endOffset);
-                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
+                String progress = AppConstants.DECIMAL_FORMAT.format( (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+                progressRateView.setText(progress);
 
                 hasNext = currentIndex < resourceList.size() - 1;
                 hasPre = currentIndex > 1;
@@ -333,7 +330,8 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 }
 
                 subContent = contents.substring(startOffset, endOffset);
-                progressRateView.setText(AppConstants.DECIMAL_FORMAT.format(endOffset * 100.0 / contents.length()) + "%");
+                String progress = AppConstants.DECIMAL_FORMAT.format( (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+                progressRateView.setText(progress);
 
                 hasNext = currentIndex < resourceList.size() - 1 || endOffset < contents.length() - 1;
                 hasPre = true;
