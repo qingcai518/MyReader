@@ -54,6 +54,7 @@ public abstract class AbstractReaderActivity extends Activity {
     protected TextPaint paint;
     protected int currentColor = Color.WHITE;
     protected int startOffset = 0;
+    protected int currentIndex = 1;
     protected String id;
     protected DaoFactory factory;
     protected MyBookDao myBookDao;
@@ -154,7 +155,8 @@ public abstract class AbstractReaderActivity extends Activity {
                 id = getIntent().getStringExtra("id");
                 factory = new DaoFactory(AbstractReaderActivity.this);
                 myBookDao = factory.getMyBookDao();
-                startOffset = myBookDao.getCurrentOffset(id);
+                startOffset = myBookDao.getCurrentOffset(id)[0];
+                currentIndex = myBookDao.getCurrentOffset(id)[1];
                 myBookDao.updateReadTime(id);
 
                 // capture info

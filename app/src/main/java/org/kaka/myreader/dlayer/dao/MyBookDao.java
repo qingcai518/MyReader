@@ -58,6 +58,7 @@ public class MyBookDao {
                 entity.setImage(image);
 
                 entity.setCurrentOffset(queryCursor.getInt(queryCursor.getColumnIndex("currentOffset")));
+                entity.setCurrentChapterIndexForEpub(queryCursor.getInt(queryCursor.getColumnIndex("currentChapterIndexForEpub")));
 
                 result.add(entity);
             }
@@ -135,20 +136,29 @@ public class MyBookDao {
         return db.update(TABLE_NAME, values, "id=?", new String[]{id});
     }
 
+
+    public int updateCurrentOffset(String id, int currentChapterIndexForEpub, int currentOffset) {
+        ContentValues values = new ContentValues();
+        values.put("currentOffset", currentOffset);
+        values.put("currentChapterIndexForEpub", currentChapterIndexForEpub);
+        return db.update(TABLE_NAME, values, "id=?", new String[]{id});
+    }
+
     public int updateReadTime(String id) {
         ContentValues values = new ContentValues();
         values.put("readDate", AppUtility.getDateTime());
         return db.update(TABLE_NAME, values, "id=?", new String[]{id});
     }
 
-    public int getCurrentOffset(String id) {
-        String sql = "select currentOffset from " + TABLE_NAME + " where id=?";
+    public int[] getCurrentOffset(String id) {
+        String sql = "select currentOffset, currentChapterIndexForEpub from " + TABLE_NAME + " where id=?";
         Cursor queryCursor = null;
-        int result = 0;
+        int[] result = new int[2];
         try {
             queryCursor = db.rawQuery(sql, new String[]{id + ""});
             queryCursor.moveToNext();
-            result = queryCursor.getInt(queryCursor.getColumnIndex("currentOffset"));
+            result[0] = queryCursor.getInt(queryCursor.getColumnIndex("currentOffset"));
+            result[1] = queryCursor.getInt(queryCursor.getColumnIndex("currentChapterIndexForEpub"));
         } finally {
             if (queryCursor != null) {
                 queryCursor.close();

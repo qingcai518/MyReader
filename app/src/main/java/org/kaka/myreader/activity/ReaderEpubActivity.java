@@ -25,7 +25,7 @@ import java.util.Map;
 import nl.siegmann.epublib.domain.Resource;
 
 public class ReaderEpubActivity extends AbstractReaderActivity {
-    private int currentIndex = 1;
+//    private int currentIndex = 1;
     private List<Resource> resourceList;
     private Map<Integer, List<Integer>> chapterOffsetMap = new LinkedHashMap<>();
     private Map<Integer, String> chapterContentMap = new LinkedHashMap<>();
@@ -167,6 +167,21 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
 
         chapterOffsetMap = new LinkedHashMap<>();
         chapterContentMap = new LinkedHashMap<>();
+
+        // 上一章的坐标重置
+        if (currentIndex > 1) {
+            makePageOffsets(currentIndex - 1);
+        }
+
+        // 本章坐标重置
+        makePageOffsets(currentIndex, startOffset);
+
+        // 下一章坐标重置
+        if(currentIndex + 1 < resourceList.size()) {
+            makePageOffsets(currentIndex + 1);
+        }
+
+        doReadTask();
     }
 
     private class BitmapProvider implements MySurfaceView.BitmapProvider {
@@ -205,7 +220,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         }
 
         public void updateCurrentOffset() {
-            myBookDao.updateCurrentOffset(id, startOffset);
+            myBookDao.updateCurrentOffset(id, currentIndex, startOffset);
         }
 
         @Override
@@ -221,11 +236,22 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
             String contents = chapterContentMap.get(currentIndex);
             int index = list.indexOf(startOffset);
             if (state == MySurfaceView.BitmapState.Left) {
+                int preOffset;
+                int endOffset;
                 if (index <= 0) {
-                    return null;
+                    if (!chapterOffsetMap.containsKey(currentIndex - 1)) {
+                        hasPre = false;
+                        return null;
+                    }
+                    List<Integer> preList = chapterOffsetMap.get(currentIndex - 1);
+                    contents = chapterContentMap.get(currentIndex - 1);
+                    preOffset = preList.get(preList.size() - 2);
+                    endOffset = preList.get(preList.size() - 1);
+                } else {
+                    preOffset = list.get(index - 1);
+                    endOffset = startOffset;
                 }
-                int preOffset = list.get(index - 1);
-                subContent = contents.substring(preOffset, startOffset);
+                subContent = contents.substring(preOffset, endOffset);
 
             } else if (state == MySurfaceView.BitmapState.ToPreLeft) {
                 startOffsetBefore = startOffset;
@@ -286,7 +312,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 hasNext = true;
 
                 // insert to myBooks.
-                myBookDao.updateCurrentOffset(id, startOffset);
+                updateCurrentOffset();
 
                 if (!hasRead) {
                     doReadTask();
@@ -294,10 +320,21 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 }
             } else if (state == MySurfaceView.BitmapState.Right) {
                 int nextIndex = list.indexOf(startOffset) + 1;
+                int endOffset;
                 if (nextIndex >= list.size()) {
-                    return null;
+                    if (!chapterOffsetMap.containsKey(currentIndex + 1)) {
+                        hasNext = false;
+                        return null;
+                    }
+                    currentIndex = currentIndex + 1;
+                    List<Integer> nextList = chapterOffsetMap.get(currentIndex);
+                    contents = chapterContentMap.get(currentIndex);
+                    hasRead = false;
+                    startOffset = nextList.get(0);
+                    endOffset = nextList.get(1);
+                } else {
+                    endOffset = list.get(nextIndex);
                 }
-                int endOffset = list.get(nextIndex);
 
                 subContent = contents.substring(startOffset, endOffset);
                 String progress = AppConstants.DECIMAL_FORMAT.format( (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
@@ -310,6 +347,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 hasNextBefore = hasNext;
                 hasPreBefore = hasPre;
                 if (index + 1 >= list.size()) {
+                    hasNext = false;
                     return null;
                 }
                 startOffset = list.get(index + 1);
@@ -319,6 +357,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     endOffset = list.get(nextIndex);
                 } else {
                     if (!chapterOffsetMap.containsKey(currentIndex + 1)) {
+                        hasNext = false;
                         return null;
                     }
                     currentIndex = currentIndex + 1;
@@ -336,7 +375,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                 hasNext = currentIndex < resourceList.size() - 1 || endOffset < contents.length() - 1;
                 hasPre = true;
                 // insert to myBooks.
-                myBookDao.updateCurrentOffset(id, startOffset);
+                updateCurrentOffset();
 
                 if (!hasRead) {
                     doReadTask();
@@ -355,8 +394,26 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         }
     }
 
+    private void makePageOffsets(int index, int offset) {
+        String content = AppUtility.getEpubContent(resourceList, index);
+        if (offset <= 0 || offset >= content.length()) {
+            makePageOffsets(index);
+            return;
+        }
+
+        String preContent = content.substring(0, offset);
+        String nextContent = content.substring(offset, content.length());
+
+        doMakeOffset(index, preContent);
+        doMakeOffset(index, nextContent);
+    }
+
     private void makePageOffsets(int index) {
         String content = AppUtility.getEpubContent(resourceList, index);
+        doMakeOffset(index, content);
+    }
+
+    private void doMakeOffset(int index, String content) {
         content = changeText(content);
         StaticLayout preLayout = new StaticLayout(content, 0, content.length(), paint, width - 100, Layout.Alignment.ALIGN_NORMAL, lineSpacing, 0.0f, false);
         int lineCount = preLayout.getLineCount();

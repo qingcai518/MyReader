@@ -13,6 +13,7 @@ public class MyBookEntity {
     private String path;
     private Bitmap image;
     private int currentOffset;
+    private int currentChapterIndexForEpub;
     private Timestamp downloadDate;
     private Timestamp readDate;
 
@@ -72,6 +73,14 @@ public class MyBookEntity {
 
     public void setCurrentOffset(int currentOffset) {
         this.currentOffset = currentOffset;
+    }
+
+    public int getCurrentChapterIndexForEpub() {
+        return currentChapterIndexForEpub;
+    }
+
+    public void setCurrentChapterIndexForEpub(int currentChapterIndexForEpub) {
+        this.currentChapterIndexForEpub = currentChapterIndexForEpub;
     }
 
     public Timestamp getDownloadDate() {

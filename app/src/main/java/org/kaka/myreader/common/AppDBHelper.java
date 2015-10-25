@@ -16,6 +16,7 @@ public class AppDBHelper extends SQLiteOpenHelper {
                     "path VARCHAR(256) NOT NULL," +
                     "image BLOB, " +
                     "currentOffset INTEGER DEFAULT 0, " +
+                    "currentChapterIndexForEpub INTEGER DEFAULT 1, " +
                     "downloadDate Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +
                     "readDate Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP) ";
     private final static String CREATE_TABLE_CAPTUREINFO =
