@@ -23,6 +23,7 @@ public class BookmarkInfoDao {
         }
         ContentValues values = new ContentValues();
         values.put("id", entity.getId());
+        values.put("chapterIndex", entity.getChapterIndex());
         values.put("offset", entity.getOffset());
         values.put("captureName", entity.getChapterName());
         values.put("progress", entity.getProgress());
@@ -30,9 +31,9 @@ public class BookmarkInfoDao {
         return db.insert(TABLE_NAME, null, values);
     }
 
-    public int delete(String id, int offset) {
-        String whereClause = "id=? and offset=?";
-        String[] args = new String[]{id, offset + ""};
+    public int delete(String id, int chapterIndex, int offset) {
+        String whereClause = "id=? and chapterIndex=? and offset=?";
+        String[] args = new String[]{id, chapterIndex + "", offset + ""};
         return db.delete(TABLE_NAME, whereClause, args);
     }
 
@@ -43,11 +44,11 @@ public class BookmarkInfoDao {
     }
 
     public boolean exist(BookmarkInfoEntity entity) {
-        String sql = "select * from " + TABLE_NAME + " where id=? and offset=?";
+        String sql = "select * from " + TABLE_NAME + " where id=? and chapterIndex=? and offset=?";
         Cursor queryCursor = null;
         boolean result = false;
         try {
-            queryCursor = db.rawQuery(sql, new String[]{entity.getId() + "", entity.getOffset() + ""});
+            queryCursor = db.rawQuery(sql, new String[]{entity.getId(), entity.getChapterIndex() + "", entity.getOffset() + ""});
             result = queryCursor.getCount() > 0;
         } finally {
             if (queryCursor != null) {
@@ -66,6 +67,7 @@ public class BookmarkInfoDao {
             while (queryCursor.moveToNext()) {
                 BookmarkInfoEntity entity = new BookmarkInfoEntity();
                 entity.setId(queryCursor.getString(queryCursor.getColumnIndex("id")));
+                entity.setChapterIndex(queryCursor.getInt(queryCursor.getColumnIndex("chapterIndex")));
                 entity.setOffset(queryCursor.getInt(queryCursor.getColumnIndex("offset")));
                 entity.setChapterName(queryCursor.getString(queryCursor.getColumnIndex("captureName")));
                 entity.setProgress(queryCursor.getString(queryCursor.getColumnIndex("progress")));

@@ -31,6 +31,7 @@ public class AppDBHelper extends SQLiteOpenHelper {
             "CREATE TABLE IF NOT EXISTS BookmarkInfo (" +
                     "id VARCHAR(64), " +
                     "offset INTEGER DEFAULT 0, " +
+                    "chapterIndex INTEGER DEFAULT 0, " +
                     "captureName VARCHAR(128) NOT NULL, " +
                     "progress VARCHAR(16) NOT NULL, " +
                     "addDate Timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP, " +

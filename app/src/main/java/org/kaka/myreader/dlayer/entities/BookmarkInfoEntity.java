@@ -8,6 +8,7 @@ public class BookmarkInfoEntity {
     private String chapterName;
     private String progress;
     private Timestamp addDate;
+    private int chapterIndex;
 
     public String getId() {
         return id;
@@ -47,5 +48,13 @@ public class BookmarkInfoEntity {
 
     public void setAddDate(Timestamp addDate) {
         this.addDate = addDate;
+    }
+
+    public int getChapterIndex() {
+        return chapterIndex;
+    }
+
+    public void setChapterIndex(int chapterIndex) {
+        this.chapterIndex = chapterIndex;
     }
 }

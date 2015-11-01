@@ -330,6 +330,7 @@ public abstract class AbstractReaderActivity extends Activity {
             public void onClick(View v) {
                 BookmarkInfoEntity entity = new BookmarkInfoEntity();
                 entity.setId(id);
+                entity.setChapterIndex(currentIndex);
                 entity.setOffset(startOffset);
                 entity.setChapterName(getChapterName());
                 entity.setProgress(progressRateView.getText().toString());

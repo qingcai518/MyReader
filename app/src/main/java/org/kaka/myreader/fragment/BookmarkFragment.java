@@ -89,7 +89,7 @@ public class BookmarkFragment extends ListFragment {
                 return true;
             case R.id.delete:
                 BookmarkInfoEntity entity = list.get(info.position);
-                dao.delete(entity.getId(), entity.getOffset());
+                dao.delete(entity.getId(), entity.getChapterIndex(), entity.getOffset());
                 list.remove(info.position);
                 adapter.notifyDataSetChanged();
                 return true;
@@ -123,7 +123,9 @@ public class BookmarkFragment extends ListFragment {
         dialog = ProgressDialog.show(getActivity(), "请稍后", "正在为您加载书签位置..");
         Intent intent = new Intent();
         int currentBookmark = list.get(position).getOffset();
+        int chapterIndex = list.get(position).getChapterIndex();
         intent.putExtra("currentOffset", currentBookmark);
+        intent.putExtra("currentIndex", chapterIndex);
         getActivity().setResult(Activity.RESULT_OK, intent);
         getActivity().finish();
         getActivity().overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);

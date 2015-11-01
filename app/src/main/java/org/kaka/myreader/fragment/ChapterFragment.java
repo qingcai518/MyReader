@@ -105,7 +105,7 @@ public class ChapterFragment extends ListFragment {
             intent.putExtra("currentOffset", currentCapture);
         } else if (type == BookType.EPUB) {
             intent.putExtra("currentIndex", position + 1);
-            intent.putExtra("startOffset", 0);
+            intent.putExtra("currentOffset", 0);
         }
         getActivity().setResult(Activity.RESULT_OK, intent);
         getActivity().finish();

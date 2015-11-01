@@ -37,7 +37,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         if (requestCode == 1) {
             if (resultCode == RESULT_OK) {
                 currentIndex = intent.getIntExtra("currentIndex", 1);
-                startOffset = intent.getIntExtra("startOffset", 0);
+                startOffset = intent.getIntExtra("currentOffset", 0);
                 createChapterInfo();
                 myView.update();
             }
@@ -216,7 +216,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
         public void resetOffset() {
             startOffset = 0;
             List<Integer> list = chapterOffsetMap.get(currentIndex);
-            String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+            String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) (list.size() - 1)) / (double) (resourceList.size() - 1)) + "%";
             progressRateView.setText(progress);
             hasPre = false;
             hasNext = true;
@@ -227,7 +227,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
             List<Integer> list = chapterOffsetMap.get(currentIndex);
             hasNext = hasNextBefore;
             hasPre = hasPreBefore;
-            String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+            String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) (list.size() - 1)) / (double) (resourceList.size() - 1)) + "%";
             progressRateView.setText(progress);
         }
 
@@ -317,7 +317,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     }
                 }
 
-                String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+                String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) (list.size() - 1)) / (double) (resourceList.size() - 1)) + "%";
                 progressRateView.setText(progress);
                 hasPre = currentIndex > 1 || startOffset > 0;
                 hasNext = true;
@@ -348,7 +348,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
 
 
                 subContent = contents.substring(startOffset, endOffset);
-                String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+                String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) (list.size() - 1)) / (double) (resourceList.size() - 1)) + "%";
                 progressRateView.setText(progress);
 
                 hasNext = !(currentIndex == resourceList.size() - 1 && contents.endsWith(subContent));
@@ -371,7 +371,7 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
                     }
                 }
 
-                String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) list.size()) / (double) (resourceList.size() - 1)) + "%";
+                String progress = AppConstants.DECIMAL_FORMAT.format(100 * (currentIndex - 1 + (list.indexOf(startOffset) + 1) / (double) (list.size() - 1)) / (double) (resourceList.size() - 1)) + "%";
                 progressRateView.setText(progress);
 
                 hasNext = !(currentIndex == resourceList.size() - 1 && contents.endsWith(subContent));
