@@ -92,6 +92,18 @@ public class ReaderTxtActivity extends AbstractReaderActivity {
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
+        super.onActivityResult(requestCode, resultCode, intent);
+        if (requestCode == 1) {
+            if (resultCode == RESULT_OK) {
+                startOffset = intent.getIntExtra("currentOffset", 0);
+                createChapterInfo();
+                myView.update();
+            }
+        }
+    }
+
+    @Override
     protected void getContents(String filePath) {
         contents = AppUtility.readFile(filePath);
     }
@@ -618,5 +630,6 @@ public class ReaderTxtActivity extends AbstractReaderActivity {
     protected void setIntentChapterInfo(Intent intent) {
         intent.putIntegerArrayListExtra("offsets", captureOffsets);
         intent.putExtra("currentCapture", currentCapture);
+        intent.putExtra("bookType", BookType.TXT);
     }
 }

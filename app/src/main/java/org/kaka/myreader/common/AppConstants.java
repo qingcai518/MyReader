@@ -28,9 +28,6 @@ public class AppConstants {
 
     public final static Integer BUFFER_SIZE = 8192;
     public final static String[] TAG_ARRAY = {"myBooks", "cloudBooks", "profile"};
-    //    public final static String TAG1 = "myBooks";
-//    public final static String TAG2 = "cloudBooks";
-//    public final static String TAG3 = "profile";
     public final static String CAPTURE_TAG1 = "capture";
     public final static String CAPTURE_TAG2 = "bookmark";
     public final static String CAPTURE_TAG3 = "note";

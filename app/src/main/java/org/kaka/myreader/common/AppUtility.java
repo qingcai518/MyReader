@@ -147,7 +147,7 @@ public class AppUtility {
     public static String[] getChapterNames(List<Resource> resourceList) {
         List<String> nameList = new ArrayList<>();
         if (resourceList != null) {
-            for (int index =1; index < resourceList.size(); index++) {
+            for (int index = 1; index < resourceList.size(); index++) {
                 Resource resource = resourceList.get(index);
                 try {
                     Document document = ResourceUtil.getAsDocument(resource);

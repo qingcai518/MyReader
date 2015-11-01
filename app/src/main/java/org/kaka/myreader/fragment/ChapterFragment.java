@@ -12,6 +12,7 @@ import android.view.ViewGroup;
 import android.widget.BaseAdapter;
 import android.widget.ListView;
 import android.widget.TextView;
+import org.kaka.myreader.activity.AbstractReaderActivity.BookType;
 
 import org.kaka.myreader.R;
 
@@ -21,14 +22,22 @@ public class ChapterFragment extends ListFragment {
     private String[] captureNames;
     private List<Integer> offsets;
     private int currentCapture;
+    private int currentIndex;
     private ProgressDialog dialog;
+    BookType type;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         captureNames = getActivity().getIntent().getStringArrayExtra("captureNames");
+        type = (BookType)getActivity().getIntent().getSerializableExtra("bookType");
+
+        // txt文件时用到的信息.
         offsets = getActivity().getIntent().getIntegerArrayListExtra("offsets");
         currentCapture = getActivity().getIntent().getIntExtra("currentCapture", 0);
+
+        // epub文件时用到的信息.
+        currentIndex = getActivity().getIntent().getIntExtra("currentIndex", 1);
 
         BaseAdapter adapter = new BaseAdapter() {
             @Override
@@ -50,8 +59,14 @@ public class ChapterFragment extends ListFragment {
             public View getView(int position, View convertView, ViewGroup parent) {
                 TextView textView = (TextView) LayoutInflater.from(ChapterFragment.this.getActivity()).inflate(
                         R.layout.item_chapter, null);
-                if (currentCapture == offsets.get(position)) {
-                    textView.setTextColor(Color.BLUE);
+                if (type == BookType.TXT) {
+                    if (currentCapture == offsets.get(position)) {
+                        textView.setTextColor(Color.BLUE);
+                    }
+                } else if (type == BookType.EPUB) {
+                    if (currentIndex == position + 1) {
+                        textView.setTextColor(Color.BLUE);
+                    }
                 }
 
                 textView.setText(captureNames[position]);
@@ -65,8 +80,12 @@ public class ChapterFragment extends ListFragment {
     @Override
     public void onViewCreated(View view, Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        int position = offsets.indexOf(currentCapture);
-        getListView().setSelection(position);
+        if (type == BookType.TXT) {
+            int position = offsets.indexOf(currentCapture);
+            getListView().setSelection(position);
+        } else if (type == BookType.EPUB) {
+            getListView().setSelection(currentIndex - 1);
+        }
     }
 
     @Override
@@ -81,8 +100,13 @@ public class ChapterFragment extends ListFragment {
     public void onListItemClick(ListView l, View v, int position, long id) {
         dialog = ProgressDialog.show(getActivity(), "请稍后", "正在为您加载选中章节..");
         Intent intent = new Intent();
-        currentCapture = offsets.get(position);
-        intent.putExtra("currentOffset", currentCapture);
+        if (type == BookType.TXT) {
+            currentCapture = offsets.get(position);
+            intent.putExtra("currentOffset", currentCapture);
+        } else if (type == BookType.EPUB) {
+            intent.putExtra("currentIndex", position + 1);
+            intent.putExtra("startOffset", 0);
+        }
         getActivity().setResult(Activity.RESULT_OK, intent);
         getActivity().finish();
         getActivity().overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);

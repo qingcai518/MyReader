@@ -115,6 +115,10 @@ public abstract class AbstractReaderActivity extends Activity {
             R.color.darkslategray
     };
 
+    public enum BookType {
+        TXT, EPUB
+    }
+
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -219,18 +223,6 @@ public abstract class AbstractReaderActivity extends Activity {
 
         unregisterReceiver(receiver);
         super.onDestroy();
-    }
-
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent intent) {
-        super.onActivityResult(requestCode, resultCode, intent);
-        if (requestCode == 1) {
-            if (resultCode == RESULT_OK) {
-                startOffset = intent.getIntExtra("currentOffset", 0);
-                createChapterInfo();
-                myView.update();
-            }
-        }
     }
 
     private void initSettings() {
@@ -378,8 +370,8 @@ public abstract class AbstractReaderActivity extends Activity {
         View popupView = getLayoutInflater().inflate(R.layout.setting_bottom, null);
         TextView seekText = (TextView) popupView.findViewById(R.id.seekText);
         seekText.setText(getChapterName());
-        Button btnCat = (Button) popupView.findViewById(R.id.catalogue);
-        btnCat.setOnClickListener(new View.OnClickListener() {
+        Button btnChapter = (Button) popupView.findViewById(R.id.catalogue);
+        btnChapter.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(AbstractReaderActivity.this, ChapterActivity.class);
