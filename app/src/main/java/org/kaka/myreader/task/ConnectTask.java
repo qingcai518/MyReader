@@ -54,13 +54,14 @@ public class ConnectTask extends AsyncTask<List<Map<String, Object>>, Integer, I
                 map.put(CloudFragment.KEY_AUTHOR, item.getString(2));
                 map.put(CloudFragment.KEY_DETAIL, item.getString(3));
                 map.put(CloudFragment.KEY_PATH, item.getString(4));
+                map.put(CloudFragment.KEY_IMAGE, item.getString(5));
 
-                byte[] data = Base64.decode(item.getString(5), Base64.DEFAULT);
-                Bitmap bitmap = null;
-                if (data.length != 0) {
-                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
-                }
-                map.put(CloudFragment.KEY_IMAGE, bitmap);
+//                byte[] data = Base64.decode(item.getString(5), Base64.DEFAULT);
+//                Bitmap bitmap = null;
+//                if (data.length != 0) {
+//                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+//                }
+//                map.put(CloudFragment.KEY_IMAGE, bitmap);
                 map.put(CloudFragment.KEY_SIZE, item.getString(6));
                 map.put(CloudFragment.KEY_SCORE, item.getDouble(7));
                 tempList.add(map);

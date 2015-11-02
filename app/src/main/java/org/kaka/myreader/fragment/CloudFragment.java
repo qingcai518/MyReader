@@ -2,10 +2,12 @@ package org.kaka.myreader.fragment;
 
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.ListFragment;
 import android.support.v4.widget.SwipeRefreshLayout;
+import android.util.Base64;
 import android.view.ContextMenu;
 import android.view.LayoutInflater;
 import android.view.MenuInflater;
@@ -83,7 +85,13 @@ public class CloudFragment extends ListFragment {
 
                 Map<String, Object> item = listData.get(position);
 
-                holder.image.setImageBitmap((Bitmap) item.get(KEY_IMAGE));
+                String imageStr = (String)item.get(KEY_IMAGE);
+                byte[] data = Base64.decode(imageStr, Base64.DEFAULT);
+                Bitmap bitmap = null;
+                if (data.length != 0) {
+                    bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+                }
+                holder.image.setImageBitmap(bitmap);
                 holder.bookName.setText((String) item.get(KEY_NAME));
                 holder.author.setText("作者 : " + item.get(KEY_AUTHOR));
                 holder.detail.setText((String) item.get(KEY_DETAIL));
@@ -150,7 +158,8 @@ public class CloudFragment extends ListFragment {
         bundle.putString(KEY_AUTHOR, (String) map.get(KEY_AUTHOR));
         bundle.putString(KEY_PATH, (String) map.get(KEY_PATH));
         bundle.putString(KEY_DETAIL, (String) map.get(KEY_DETAIL));
-        bundle.putParcelable(KEY_IMAGE, (Bitmap) map.get(KEY_IMAGE));
+        bundle.putString(KEY_IMAGE, (String) map.get(KEY_IMAGE));
+//        bundle.putParcelable(KEY_IMAGE, (Bitmap) map.get(KEY_IMAGE));
         bundle.putString(KEY_SIZE, (String) map.get(KEY_SIZE));
         double score = (Double) map.get(KEY_SCORE);
         bundle.putFloat(KEY_SCORE, (float) score);

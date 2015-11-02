@@ -513,15 +513,7 @@ public abstract class AbstractReaderActivity extends Activity {
 
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
-                int endOffset = getEndOffset(distance, progress);
-                int nearestOffset = 0;
-                for (int key : offsetMap.keySet()) {
-                    if (key <= endOffset) {
-                        nearestOffset = key > nearestOffset ? key : nearestOffset;
-                    }
-                }
-                startOffset = nearestOffset;
-                myView.update();
+                updatePosition(distance, progress);
             }
         });
 
@@ -790,7 +782,8 @@ public abstract class AbstractReaderActivity extends Activity {
 
     abstract protected int getProgress(int distance);
 
-    abstract protected int getEndOffset(int distance, int progress);
+    //    abstract protected int getEndOffset(int distance, int progress);
+    abstract protected void updatePosition(int distance, int progress);
 
     abstract protected void setIntentChapterInfo(Intent intent);
 }

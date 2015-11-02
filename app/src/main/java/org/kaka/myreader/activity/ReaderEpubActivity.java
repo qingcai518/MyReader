@@ -114,20 +114,34 @@ public class ReaderEpubActivity extends AbstractReaderActivity {
 
     @Override
     protected int getDistance() {
-        // TODO
-        return 0;
+        List<Integer> list = chapterOffsetMap.get(currentIndex);
+        return list.get(list.size() - 1) - list.get(0);
     }
 
     @Override
     protected int getProgress(int distance) {
-        //TODO
-        return 0;
+        List<Integer> list = chapterOffsetMap.get(currentIndex);
+        int endOffset = list.get(list.indexOf(startOffset) + 1);
+        return endOffset * 100 / distance;
     }
 
     @Override
-    protected int getEndOffset(int distance, int progress) {
-        //TODO
-        return distance * progress / 100;
+    protected void updatePosition(int distance, int progress) {
+        List<Integer> list = chapterOffsetMap.get(currentIndex);
+        int endOffset = distance * progress / 100;
+        int nearestOffset = 0;
+        for (int key : list) {
+            if (key <= endOffset) {
+                nearestOffset = key > nearestOffset ? key : nearestOffset;
+            }
+        }
+
+        if (nearestOffset == list.get(list.size() - 1)) {
+            startOffset = list.get(list.indexOf(nearestOffset) - 1);
+        } else {
+            startOffset = nearestOffset;
+        }
+        myView.update();
     }
 
     @Override

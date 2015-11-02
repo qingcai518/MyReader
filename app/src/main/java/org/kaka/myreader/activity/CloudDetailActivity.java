@@ -8,9 +8,11 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v4.app.FragmentActivity;
+import android.util.Base64;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -86,7 +88,13 @@ public class CloudDetailActivity extends FragmentActivity {
 
     private void init() {
         ImageView image = (ImageView) findViewById(R.id.image);
-        Bitmap bitmap = bundle.getParcelable(CloudFragment.KEY_IMAGE);
+        String imageStr = bundle.getString(CloudFragment.KEY_IMAGE);
+        byte[] data = Base64.decode(imageStr, Base64.DEFAULT);
+        Bitmap bitmap = null;
+        if (data.length != 0) {
+            bitmap = BitmapFactory.decodeByteArray(data, 0, data.length);
+        }
+//        Bitmap bitmap = bundle.getParcelable(CloudFragment.KEY_IMAGE);
         image.setImageBitmap(bitmap);
 
         TextView bookNameView = (TextView) findViewById(R.id.name);

@@ -196,8 +196,16 @@ public class ReaderTxtActivity extends AbstractReaderActivity {
     }
 
     @Override
-    protected int getEndOffset(int distance, int progress) {
-        return currentCapture + distance * progress / 100;
+    protected void updatePosition(int distance, int progress) {
+        int endOffset = currentCapture + distance * progress / 100;
+        int nearestOffset = 0;
+        for (int key : offsetMap.keySet()) {
+            if (key <= endOffset) {
+                nearestOffset = key > nearestOffset ? key : nearestOffset;
+            }
+        }
+        startOffset = nearestOffset;
+        myView.update();
     }
 
     protected class BitmapProvider implements MySurfaceView.BitmapProvider {
