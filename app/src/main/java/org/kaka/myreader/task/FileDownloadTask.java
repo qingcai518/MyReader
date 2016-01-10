@@ -3,8 +3,10 @@ package org.kaka.myreader.task;
 import android.content.Context;
 import android.content.Intent;
 import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.AsyncTask;
 import android.support.v4.app.FragmentActivity;
+import android.util.Base64;
 import android.util.Log;
 import android.widget.Toast;
 
@@ -48,7 +50,9 @@ public class FileDownloadTask extends AsyncTask<Map<String, Object>, Long, Strin
             String author = (String) params[0].get(CloudFragment.KEY_AUTHOR);
             String detail = (String) params[0].get(CloudFragment.KEY_DETAIL);
             fileName = (String) params[0].get(CloudFragment.KEY_NAME);
-            Bitmap bitmap = (Bitmap) params[0].get(CloudFragment.KEY_IMAGE);
+//            Bitmap bitmap = (Bitmap) params[0].get(CloudFragment.KEY_IMAGE);
+            byte[] decodedString = Base64.decode((String)params[0].get(CloudFragment.KEY_IMAGE), Base64.DEFAULT);
+            Bitmap bitmap = BitmapFactory.decodeByteArray(decodedString, 0, decodedString.length);
 
             String path = filePath.substring(0, filePath.lastIndexOf("/") + 1);
             String name = filePath.substring(filePath.lastIndexOf("/") + 1, filePath.lastIndexOf("."));
